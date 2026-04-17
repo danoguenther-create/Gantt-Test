@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useDispatch, useProject } from '../state/store';
 import { exportJson, importJsonFromFile } from '../state/persistence';
+import { buildSampleProject } from '../state/sampleData';
 import type { ZoomLevel } from '../types';
 
 interface Props {
@@ -92,6 +93,17 @@ export function Toolbar({ selectedId }: Props) {
         </button>
       ))}
       <span style={{ width: 8 }} />
+      <button
+        style={btn}
+        title="Replace current project with the demo sample data"
+        onClick={() => {
+          if (confirm('Replace your current project with the sample data? Export JSON first if you want to keep it.')) {
+            dispatch({ type: 'REPLACE_STATE', state: buildSampleProject() });
+          }
+        }}
+      >
+        Load Sample
+      </button>
       <button style={btn} onClick={() => exportJson(state)}>
         Export JSON
       </button>
