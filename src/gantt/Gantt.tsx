@@ -4,7 +4,7 @@ import { Bar } from './Bar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
 import { computeTicks, computeTimeline, pxForDate } from './timeline';
-import { ROW_HEIGHT } from '../grid/columns';
+import { GHOST_ROWS, ROW_HEIGHT } from '../grid/columns';
 
 interface Props {
   state: ProjectState;
@@ -22,7 +22,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
     return m;
   }, [rows]);
 
-  const bodyHeight = rows.length * ROW_HEIGHT;
+  const bodyHeight = (rows.length + GHOST_ROWS) * ROW_HEIGHT;
   const todayX = pxForDate(metrics, new Date().toISOString().slice(0, 10));
 
   return (

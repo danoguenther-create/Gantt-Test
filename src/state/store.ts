@@ -17,6 +17,7 @@ export type Action =
   | { type: 'RESIZE_TASK_DAYS'; id: TaskId; deltaWorkingDays: number; edge: 'start' | 'finish' }
   | { type: 'SET_STATUS'; id: TaskId; status: Status }
   | { type: 'ADD_TASK_BELOW'; id: TaskId }
+  | { type: 'ADD_TASK_AT_END' }
   | { type: 'DELETE_TASK'; id: TaskId }
   | { type: 'INDENT'; id: TaskId }
   | { type: 'OUTDENT'; id: TaskId }
@@ -118,6 +119,29 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       const siblings = Object.values(tasks).filter((x) => x.parentId === parentId).sort((a, b) => a.order - b.order);
       siblings.forEach((s, i) => (tasks[s.id] = { ...tasks[s.id], order: i }));
       const rootOrder = parentId === null ? siblings.map((s) => s.id) : state.rootOrder;
+      return recompute({ ...state, tasks, rootOrder });
+    }
+    case 'ADD_TASK_AT_END': {
+      const id = nextId(state);
+      const maxOrder = siblingOrderMax(state, null);
+      const finishes = Object.values(state.tasks).map((t) => t.finish).sort();
+      const latestFinish = finishes[finishes.length - 1];
+      const today = new Date();
+      const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const start = latestFinish ? addWorkingDays(latestFinish, 1) : todayISO;
+      const newTask: Task = {
+        id,
+        name: 'New Task',
+        status: 'Not Started',
+        start,
+        finish: start,
+        durationDays: 1,
+        predecessors: [],
+        parentId: null,
+        order: maxOrder + 1,
+      };
+      const tasks = { ...state.tasks, [id]: newTask };
+      const rootOrder = [...state.rootOrder, id];
       return recompute({ ...state, tasks, rootOrder });
     }
     case 'DELETE_TASK': {

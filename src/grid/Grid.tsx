@@ -1,7 +1,8 @@
 import { forwardRef } from 'react';
 import type { VisibleRow } from '../types';
 import { Row } from './Row';
-import { COLUMNS, GRID_WIDTH, HEADER_HEIGHT, ROW_HEIGHT } from './columns';
+import { COLUMNS, GRID_WIDTH, GHOST_ROWS, HEADER_HEIGHT, ROW_HEIGHT } from './columns';
+import { useDispatch } from '../state/store';
 
 interface Props {
   rows: VisibleRow[];
@@ -14,6 +15,9 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
   { rows, selectedId, onSelect, onScroll },
   ref,
 ) {
+  const dispatch = useDispatch();
+  const totalRows = rows.length + GHOST_ROWS;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
       <div
@@ -49,7 +53,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: GRID_WIDTH }}
         onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
       >
-        <div style={{ position: 'relative', height: rows.length * ROW_HEIGHT, width: GRID_WIDTH }}>
+        <div style={{ position: 'relative', height: totalRows * ROW_HEIGHT, width: GRID_WIDTH }}>
           {rows.map((row) => (
             <div
               key={row.task.id}
@@ -58,6 +62,39 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
               <Row row={row} selected={selectedId === row.task.id} onSelect={() => onSelect(row.task.id)} />
             </div>
           ))}
+          {Array.from({ length: GHOST_ROWS }).map((_, i) => {
+            const idx = rows.length + i;
+            return (
+              <div
+                key={`ghost-${i}`}
+                onClick={() => dispatch({ type: 'ADD_TASK_AT_END' })}
+                style={{
+                  position: 'absolute',
+                  top: idx * ROW_HEIGHT,
+                  left: 0,
+                  width: GRID_WIDTH,
+                  height: ROW_HEIGHT,
+                  display: 'flex',
+                  borderBottom: '1px solid #eef2f7',
+                  background: idx % 2 === 0 ? '#ffffff' : '#fafbfc',
+                  cursor: 'cell',
+                }}
+                title="Click to add a new task"
+              >
+                {COLUMNS.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      width: c.width,
+                      minWidth: c.width,
+                      borderRight: '1px solid #eef2f7',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

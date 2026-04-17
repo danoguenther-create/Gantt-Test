@@ -19,3 +19,4 @@ export const COLUMNS: ColumnDef[] = [
 export const GRID_WIDTH = COLUMNS.reduce((acc, c) => acc + c.width, 0);
 export const ROW_HEIGHT = 28;
 export const HEADER_HEIGHT = 36;
+export const GHOST_ROWS = 20;
