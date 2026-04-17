@@ -99,6 +99,14 @@ export function Toolbar({ selectedId }: Props) {
         Import JSON
       </button>
       <input ref={fileInput} type="file" accept="application/json" onChange={onImport} style={{ display: 'none' }} />
+      <a
+        href="./portable.html"
+        download="gantt-planner.html"
+        style={{ ...btn, textDecoration: 'none', color: '#0f172a', display: 'inline-flex', alignItems: 'center' }}
+        title="Download a single-file version of this app you can open offline by double-clicking"
+      >
+        Download portable HTML
+      </a>
     </div>
   );
 }

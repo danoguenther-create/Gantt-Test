@@ -32,16 +32,28 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
+      - name: Build Pages bundle
         env:
           GITHUB_PAGES: 'true'
         run: npm run build
+
+      - name: Build portable single-file bundle
+        run: npm run build:single
+
+      - name: Embed portable HTML into Pages output
+        run: cp dist-single/index.html dist/portable.html
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Upload portable HTML as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gantt-planner-portable
+          path: dist-single/index.html
 
       - id: deploy
         uses: actions/deploy-pages@v4
