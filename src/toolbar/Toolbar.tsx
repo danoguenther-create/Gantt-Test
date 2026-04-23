@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useDispatch, useProject } from '../state/store';
+import { useDispatch, useProject, useWorkspace } from '../state/store';
 import { exportJson, importJsonFromFile } from '../state/persistence';
 import { buildSampleProject } from '../state/sampleData';
 import type { ZoomLevel } from '../types';
@@ -12,20 +12,36 @@ const ZOOMS: ZoomLevel[] = ['day', 'week', 'month'];
 
 export function Toolbar({ selectedId }: Props) {
   const state = useProject();
+  const workspace = useWorkspace();
   const dispatch = useDispatch();
   const fileInput = useRef<HTMLInputElement>(null);
+  const importMode = useRef<'replace' | 'new'>('replace');
+
+  const currentProject = workspace.projects[workspace.currentProjectId];
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const mode = importMode.current;
     try {
       const next = await importJsonFromFile(file);
-      dispatch({ type: 'REPLACE_STATE', state: next });
+      if (mode === 'new') {
+        const name = prompt('Name for the imported project?', file.name.replace(/\.json$/i, ''));
+        if (name === null) return;
+        dispatch({ type: 'CREATE_PROJECT', name: name || 'Imported', seed: next });
+      } else {
+        dispatch({ type: 'REPLACE_STATE', state: next });
+      }
     } catch (err) {
       alert(`Failed to import: ${(err as Error).message}`);
     } finally {
       if (fileInput.current) fileInput.current.value = '';
     }
+  };
+
+  const pickFile = (mode: 'replace' | 'new') => {
+    importMode.current = mode;
+    fileInput.current?.click();
   };
 
   const btn: React.CSSProperties = {
@@ -38,6 +54,29 @@ export function Toolbar({ selectedId }: Props) {
   };
   const disabled: React.CSSProperties = { ...btn, opacity: 0.4, cursor: 'not-allowed' };
 
+  const canDeleteProject = workspace.projectOrder.length > 1;
+
+  const onNewProject = () => {
+    const name = prompt('Name for the new project?', 'New Project');
+    if (name === null) return;
+    dispatch({ type: 'CREATE_PROJECT', name: name || 'Untitled' });
+  };
+
+  const onRenameProject = () => {
+    const name = prompt('Rename project to:', currentProject.name);
+    if (name === null) return;
+    dispatch({ type: 'RENAME_PROJECT', id: currentProject.id, name: name || 'Untitled' });
+  };
+
+  const onDeleteProject = () => {
+    if (!canDeleteProject) return;
+    if (confirm(`Delete project "${currentProject.name}"? This cannot be undone.`)) {
+      dispatch({ type: 'DELETE_PROJECT', id: currentProject.id });
+    }
+  };
+
+  const safeName = currentProject.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'project';
+
   return (
     <div
       style={{
@@ -48,8 +87,42 @@ export function Toolbar({ selectedId }: Props) {
         background: '#f1f5f9',
         borderBottom: '1px solid #cbd5e1',
         flexShrink: 0,
+        flexWrap: 'wrap',
       }}
     >
+      <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Project</span>
+      <select
+        value={currentProject.id}
+        onChange={(e) => dispatch({ type: 'SWITCH_PROJECT', id: e.target.value })}
+        style={{ ...btn, padding: '3px 6px', minWidth: 140, cursor: 'pointer' }}
+        title="Switch to another project"
+      >
+        {workspace.projectOrder.map((id) => {
+          const p = workspace.projects[id];
+          return (
+            <option key={id} value={id}>
+              {p.name}
+            </option>
+          );
+        })}
+      </select>
+      <button style={btn} onClick={onNewProject} title="Create a new empty project">
+        + New
+      </button>
+      <button style={btn} onClick={onRenameProject} title="Rename the current project">
+        Rename
+      </button>
+      <button
+        style={canDeleteProject ? btn : disabled}
+        disabled={!canDeleteProject}
+        onClick={onDeleteProject}
+        title={canDeleteProject ? 'Delete the current project' : 'Cannot delete the last remaining project'}
+      >
+        Delete
+      </button>
+
+      <span style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 6px' }} />
+
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
@@ -62,9 +135,8 @@ export function Toolbar({ selectedId }: Props) {
         disabled={!selectedId}
         onClick={() => selectedId && dispatch({ type: 'DELETE_TASK', id: selectedId })}
       >
-        Delete
+        Delete Row
       </button>
-      <span style={{ width: 8 }} />
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
@@ -81,7 +153,9 @@ export function Toolbar({ selectedId }: Props) {
       >
         ← Outdent
       </button>
+
       <span style={{ flex: 1 }} />
+
       <span style={{ fontSize: 12, color: '#475569' }}>Zoom</span>
       {ZOOMS.map((z) => (
         <button
@@ -92,23 +166,31 @@ export function Toolbar({ selectedId }: Props) {
           {z[0].toUpperCase() + z.slice(1)}
         </button>
       ))}
+
       <span style={{ width: 8 }} />
       <button
         style={btn}
-        title="Replace current project with the demo sample data"
+        title="Replace the current project with the demo sample data"
         onClick={() => {
-          if (confirm('Replace your current project with the sample data? Export JSON first if you want to keep it.')) {
+          if (confirm(`Replace "${currentProject.name}" with the sample data? Export JSON first if you want to keep it.`)) {
             dispatch({ type: 'REPLACE_STATE', state: buildSampleProject() });
           }
         }}
       >
         Load Sample
       </button>
-      <button style={btn} onClick={() => exportJson(state)}>
+      <button
+        style={btn}
+        onClick={() => exportJson(state, `${safeName}.json`)}
+        title="Download the current project as JSON"
+      >
         Export JSON
       </button>
-      <button style={btn} onClick={() => fileInput.current?.click()}>
+      <button style={btn} onClick={() => pickFile('replace')} title="Replace current project with a JSON file">
         Import JSON
+      </button>
+      <button style={btn} onClick={() => pickFile('new')} title="Import JSON as a new project">
+        Import as New
       </button>
       <input ref={fileInput} type="file" accept="application/json" onChange={onImport} style={{ display: 'none' }} />
       <a

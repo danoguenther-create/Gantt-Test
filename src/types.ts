@@ -33,6 +33,18 @@ export interface ProjectState {
   zoom: ZoomLevel;
 }
 
+export interface NamedProject {
+  id: string;
+  name: string;
+  project: ProjectState;
+}
+
+export interface Workspace {
+  currentProjectId: string;
+  projects: Record<string, NamedProject>;
+  projectOrder: string[];
+}
+
 export interface VisibleRow {
   task: Task;
   depth: number;

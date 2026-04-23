@@ -1,13 +1,25 @@
 import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from 'react';
 import { createElement } from 'react';
-import type { ProjectState, Task, TaskId, ZoomLevel, Status, Dependency } from '../types';
+import type {
+  Dependency,
+  NamedProject,
+  ProjectState,
+  Status,
+  Task,
+  TaskId,
+  Workspace,
+  ZoomLevel,
+} from '../types';
 import { scheduleLeaves } from '../scheduling/schedule';
 import { rollupSummaries, hasChildren } from '../scheduling/rollup';
 import { addWorkingDays, diffWorkingDays } from '../scheduling/workingDays';
-import { loadFromLocalStorage, saveToLocalStorage } from './persistence';
-import { buildSampleProject } from './sampleData';
+import {
+  createDefaultWorkspace,
+  loadWorkspaceFromLocalStorage,
+  saveWorkspaceToLocalStorage,
+} from './persistence';
 
-export type Action =
+export type ProjectAction =
   | { type: 'UPDATE_TASK'; id: TaskId; patch: Partial<Task> }
   | { type: 'UPDATE_DURATION'; id: TaskId; durationDays: number }
   | { type: 'UPDATE_START'; id: TaskId; start: string }
@@ -25,6 +37,14 @@ export type Action =
   | { type: 'SET_ZOOM'; zoom: ZoomLevel }
   | { type: 'REPLACE_STATE'; state: ProjectState };
 
+export type WorkspaceAction =
+  | { type: 'CREATE_PROJECT'; name: string; seed?: ProjectState }
+  | { type: 'SWITCH_PROJECT'; id: string }
+  | { type: 'RENAME_PROJECT'; id: string; name: string }
+  | { type: 'DELETE_PROJECT'; id: string };
+
+export type Action = ProjectAction | WorkspaceAction;
+
 function recompute(state: ProjectState): ProjectState {
   return rollupSummaries(scheduleLeaves(state));
 }
@@ -37,13 +57,13 @@ function siblingOrderMax(state: ProjectState, parentId: TaskId | null): number {
   return m;
 }
 
-function nextId(state: ProjectState): string {
+function nextTaskId(state: ProjectState): string {
   let n = 1;
   while (state.tasks[String(n)]) n++;
   return String(n);
 }
 
-function reducer(state: ProjectState, action: Action): ProjectState {
+function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
   switch (action.type) {
     case 'UPDATE_TASK': {
       const t = state.tasks[action.id];
@@ -102,7 +122,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
     case 'ADD_TASK_BELOW': {
       const anchor = state.tasks[action.id];
       const parentId = anchor ? anchor.parentId : null;
-      const id = nextId(state);
+      const id = nextTaskId(state);
       const order = (anchor ? anchor.order : siblingOrderMax(state, null)) + 0.5;
       const newTask: Task = {
         id,
@@ -122,7 +142,7 @@ function reducer(state: ProjectState, action: Action): ProjectState {
       return recompute({ ...state, tasks, rootOrder });
     }
     case 'ADD_TASK_AT_END': {
-      const id = nextId(state);
+      const id = nextTaskId(state);
       const maxOrder = siblingOrderMax(state, null);
       const finishes = Object.values(state.tasks).map((t) => t.finish).sort();
       const latestFinish = finishes[finishes.length - 1];
@@ -199,31 +219,94 @@ function reducer(state: ProjectState, action: Action): ProjectState {
   }
 }
 
-const StateCtx = createContext<ProjectState | null>(null);
+function genProjectId(ws: Workspace): string {
+  let id: string;
+  do {
+    id = `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  } while (ws.projects[id]);
+  return id;
+}
+
+function workspaceReducer(ws: Workspace, action: Action): Workspace {
+  switch (action.type) {
+    case 'CREATE_PROJECT': {
+      const id = genProjectId(ws);
+      const empty: ProjectState = { tasks: {}, rootOrder: [], zoom: 'week' };
+      const project = action.seed ? recompute(action.seed) : empty;
+      const named: NamedProject = { id, name: action.name || 'Untitled', project };
+      return {
+        currentProjectId: id,
+        projects: { ...ws.projects, [id]: named },
+        projectOrder: [...ws.projectOrder, id],
+      };
+    }
+    case 'SWITCH_PROJECT':
+      return ws.projects[action.id] ? { ...ws, currentProjectId: action.id } : ws;
+    case 'RENAME_PROJECT': {
+      const np = ws.projects[action.id];
+      if (!np) return ws;
+      return { ...ws, projects: { ...ws.projects, [action.id]: { ...np, name: action.name } } };
+    }
+    case 'DELETE_PROJECT': {
+      if (!ws.projects[action.id]) return ws;
+      if (ws.projectOrder.length <= 1) return ws;
+      const projects = { ...ws.projects };
+      delete projects[action.id];
+      const projectOrder = ws.projectOrder.filter((x) => x !== action.id);
+      const currentProjectId = ws.currentProjectId === action.id ? projectOrder[0] : ws.currentProjectId;
+      return { projects, projectOrder, currentProjectId };
+    }
+    default: {
+      const current = ws.projects[ws.currentProjectId];
+      if (!current) return ws;
+      const nextProject = projectReducer(current.project, action);
+      if (nextProject === current.project) return ws;
+      return {
+        ...ws,
+        projects: {
+          ...ws.projects,
+          [ws.currentProjectId]: { ...current, project: nextProject },
+        },
+      };
+    }
+  }
+}
+
+const WorkspaceCtx = createContext<Workspace | null>(null);
 const DispatchCtx = createContext<Dispatch<Action> | null>(null);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, null, () => {
-    const loaded = loadFromLocalStorage();
-    return recompute(loaded ?? buildSampleProject());
+  const [workspace, dispatch] = useReducer(workspaceReducer, null, () => {
+    const loaded = loadWorkspaceFromLocalStorage();
+    const ws = loaded ?? createDefaultWorkspace();
+    const projects = { ...ws.projects };
+    for (const id of Object.keys(projects)) {
+      projects[id] = { ...projects[id], project: recompute(projects[id].project) };
+    }
+    return { ...ws, projects };
   });
 
   useEffect(() => {
-    const id = setTimeout(() => saveToLocalStorage(state), 250);
+    const id = setTimeout(() => saveWorkspaceToLocalStorage(workspace), 250);
     return () => clearTimeout(id);
-  }, [state]);
+  }, [workspace]);
 
   return createElement(
-    StateCtx.Provider,
-    { value: state },
+    WorkspaceCtx.Provider,
+    { value: workspace },
     createElement(DispatchCtx.Provider, { value: dispatch }, children),
   );
 }
 
+export function useWorkspace(): Workspace {
+  const w = useContext(WorkspaceCtx);
+  if (!w) throw new Error('ProjectProvider missing');
+  return w;
+}
+
 export function useProject(): ProjectState {
-  const s = useContext(StateCtx);
-  if (!s) throw new Error('ProjectProvider missing');
-  return s;
+  const ws = useWorkspace();
+  return ws.projects[ws.currentProjectId].project;
 }
 
 export function useDispatch(): Dispatch<Action> {

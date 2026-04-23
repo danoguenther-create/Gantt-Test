@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Grid, type ActiveCell } from './grid/Grid';
 import { COLUMNS } from './grid/columns';
 import type { NavDirection } from './grid/Cell';
 import { Gantt } from './gantt/Gantt';
 import { Toolbar } from './toolbar/Toolbar';
-import { ProjectProvider, useDispatch, useProject } from './state/store';
+import { ProjectProvider, useDispatch, useProject, useWorkspace } from './state/store';
 import { computeVisibleRows } from './state/visibleRows';
 
 function predictNextId(tasks: Record<string, unknown>): string {
@@ -14,11 +14,17 @@ function predictNextId(tasks: Record<string, unknown>): string {
 }
 
 function Workspace() {
+  const workspace = useWorkspace();
   const state = useProject();
   const dispatch = useDispatch();
   const rows = useMemo(() => computeVisibleRows(state), [state]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [pendingEditAt, setPendingEditAt] = useState<ActiveCell | null>(null);
+
+  useEffect(() => {
+    setActiveCell(null);
+    setPendingEditAt(null);
+  }, [workspace.currentProjectId]);
 
   const activate = useCallback((rowId: string, colIdx: number) => {
     setActiveCell({ rowId, colIdx });
