@@ -16,13 +16,15 @@ export interface ActiveCell {
 interface Props {
   rows: VisibleRow[];
   activeCell: ActiveCell | null;
+  pendingEditAt: ActiveCell | null;
   onActivate: (rowId: string, colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onEditStarted: () => void;
   onScroll: (top: number) => void;
 }
 
 export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
-  { rows, activeCell, onActivate, onNavigate, onScroll },
+  { rows, activeCell, pendingEditAt, onActivate, onNavigate, onEditStarted, onScroll },
   ref,
 ) {
   const dispatch = useDispatch();
@@ -66,6 +68,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         <div style={{ position: 'relative', height: totalRows * ROW_HEIGHT, width: GRID_WIDTH }}>
           {rows.map((row) => {
             const isActiveRow = activeCell?.rowId === row.task.id;
+            const pendingColIdx = pendingEditAt?.rowId === row.task.id ? pendingEditAt.colIdx : null;
             return (
               <div
                 key={row.task.id}
@@ -75,8 +78,10 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   row={row}
                   selected={isActiveRow}
                   activeColIdx={isActiveRow ? activeCell!.colIdx : null}
+                  pendingEditColIdx={pendingColIdx}
                   onActivate={(colIdx) => onActivate(row.task.id, colIdx)}
                   onNavigate={onNavigate}
+                  onEditStarted={onEditStarted}
                 />
               </div>
             );

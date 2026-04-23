@@ -6,11 +6,13 @@ interface Props {
   row: VisibleRow;
   selected: boolean;
   activeColIdx: number | null;
+  pendingEditColIdx: number | null;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onEditStarted: () => void;
 }
 
-export function Row({ row, selected, activeColIdx, onActivate, onNavigate }: Props) {
+export function Row({ row, selected, activeColIdx, pendingEditColIdx, onActivate, onNavigate, onEditStarted }: Props) {
   return (
     <div
       style={{
@@ -30,8 +32,10 @@ export function Row({ row, selected, activeColIdx, onActivate, onNavigate }: Pro
           hasChildren={row.hasChildren}
           selected={selected}
           active={activeColIdx === idx}
+          autoEdit={pendingEditColIdx === idx}
           onActivate={onActivate}
           onNavigate={onNavigate}
+          onEditStarted={onEditStarted}
         />
       ))}
     </div>

@@ -15,8 +15,10 @@ interface Props {
   hasChildren: boolean;
   selected: boolean;
   active: boolean;
+  autoEdit: boolean;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onEditStarted: () => void;
 }
 
 const STATUSES: Status[] = ['Not Started', 'In Progress', 'Complete'];
@@ -44,8 +46,10 @@ export function Cell({
   hasChildren,
   selected,
   active,
+  autoEdit,
   onActivate,
   onNavigate,
+  onEditStarted,
 }: Props) {
   const dispatch = useDispatch();
   const [editing, setEditing] = useState(false);
@@ -66,6 +70,14 @@ export function Cell({
       cellRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
   }, [active, editing]);
+
+  useEffect(() => {
+    if (autoEdit && active && !editing && column !== 'status') {
+      setInitialEditValue(null);
+      setEditing(true);
+      onEditStarted();
+    }
+  }, [autoEdit, active, editing, column, onEditStarted]);
 
   const commitText = (raw: string) => {
     setEditing(false);

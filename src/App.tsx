@@ -4,46 +4,62 @@ import { COLUMNS } from './grid/columns';
 import type { NavDirection } from './grid/Cell';
 import { Gantt } from './gantt/Gantt';
 import { Toolbar } from './toolbar/Toolbar';
-import { ProjectProvider, useProject } from './state/store';
+import { ProjectProvider, useDispatch, useProject } from './state/store';
 import { computeVisibleRows } from './state/visibleRows';
+
+function predictNextId(tasks: Record<string, unknown>): string {
+  let n = 1;
+  while (tasks[String(n)]) n++;
+  return String(n);
+}
 
 function Workspace() {
   const state = useProject();
+  const dispatch = useDispatch();
   const rows = useMemo(() => computeVisibleRows(state), [state]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
+  const [pendingEditAt, setPendingEditAt] = useState<ActiveCell | null>(null);
 
   const activate = useCallback((rowId: string, colIdx: number) => {
     setActiveCell({ rowId, colIdx });
   }, []);
 
+  const clearPendingEdit = useCallback(() => setPendingEditAt(null), []);
+
   const navigate = useCallback(
     (dir: NavDirection) => {
       if (rows.length === 0) return;
-      setActiveCell((current) => {
-        const cur = current ?? { rowId: rows[0].task.id, colIdx: 0 };
-        let rowIdx = rows.findIndex((r) => r.task.id === cur.rowId);
-        if (rowIdx < 0) rowIdx = 0;
-        let colIdx = cur.colIdx;
-        const lastCol = COLUMNS.length - 1;
-        const lastRow = rows.length - 1;
+      const cur = activeCell ?? { rowId: rows[0].task.id, colIdx: 0 };
+      const rowIdx = Math.max(0, rows.findIndex((r) => r.task.id === cur.rowId));
+      const lastCol = COLUMNS.length - 1;
+      const lastRow = rows.length - 1;
 
-        if (dir === 'right') colIdx += 1;
-        else if (dir === 'left') colIdx -= 1;
-        else if (dir === 'down') rowIdx += 1;
-        else if (dir === 'up') rowIdx -= 1;
+      if (dir === 'down' && rowIdx === lastRow && cur.colIdx === 0) {
+        const newId = predictNextId(state.tasks);
+        dispatch({ type: 'ADD_TASK_BELOW', id: cur.rowId });
+        setActiveCell({ rowId: newId, colIdx: 0 });
+        setPendingEditAt({ rowId: newId, colIdx: 0 });
+        return;
+      }
 
-        if (colIdx > lastCol) {
-          colIdx = 0;
-          rowIdx = Math.min(rowIdx + 1, lastRow);
-        } else if (colIdx < 0) {
-          colIdx = lastCol;
-          rowIdx = Math.max(rowIdx - 1, 0);
-        }
-        rowIdx = Math.max(0, Math.min(lastRow, rowIdx));
-        return { rowId: rows[rowIdx].task.id, colIdx };
-      });
+      let nextRow = rowIdx;
+      let nextCol = cur.colIdx;
+      if (dir === 'right') nextCol += 1;
+      else if (dir === 'left') nextCol -= 1;
+      else if (dir === 'down') nextRow += 1;
+      else if (dir === 'up') nextRow -= 1;
+
+      if (nextCol > lastCol) {
+        nextCol = 0;
+        nextRow = Math.min(nextRow + 1, lastRow);
+      } else if (nextCol < 0) {
+        nextCol = lastCol;
+        nextRow = Math.max(nextRow - 1, 0);
+      }
+      nextRow = Math.max(0, Math.min(lastRow, nextRow));
+      setActiveCell({ rowId: rows[nextRow].task.id, colIdx: nextCol });
     },
-    [rows],
+    [rows, activeCell, state.tasks, dispatch],
   );
 
   const gridScrollRef = useRef<HTMLDivElement>(null);
@@ -75,8 +91,10 @@ function Workspace() {
           ref={gridScrollRef}
           rows={rows}
           activeCell={activeCell}
+          pendingEditAt={pendingEditAt}
           onActivate={activate}
           onNavigate={navigate}
+          onEditStarted={clearPendingEdit}
           onScroll={onGridScroll}
         />
         <Gantt ref={ganttScrollRef} state={state} rows={rows} onScroll={onGanttScroll} />
