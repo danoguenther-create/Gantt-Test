@@ -1,7 +1,8 @@
 import { useRef } from 'react';
-import { useDispatch, useProject, useWorkspace } from '../state/store';
+import { useDispatch, useProject, useSaveMeta, useWorkspace } from '../state/store';
 import { exportJson, importJsonFromFile } from '../state/persistence';
 import { buildSampleProject } from '../state/sampleData';
+import { formatAgo, useNow } from '../state/useNow';
 import type { ZoomLevel } from '../types';
 
 interface Props {
@@ -14,6 +15,8 @@ export function Toolbar({ selectedId }: Props) {
   const state = useProject();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
+  const { lastSavedAt, markExported } = useSaveMeta();
+  const now = useNow(15_000);
   const fileInput = useRef<HTMLInputElement>(null);
   const importMode = useRef<'replace' | 'new'>('replace');
 
@@ -156,6 +159,13 @@ export function Toolbar({ selectedId }: Props) {
 
       <span style={{ flex: 1 }} />
 
+      <span
+        title={lastSavedAt ? `Auto-saved to browser storage ${new Date(lastSavedAt).toLocaleString()}` : 'No auto-save yet'}
+        style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '0 6px' }}
+      >
+        Saved {formatAgo(lastSavedAt, now)}
+      </span>
+
       <span style={{ fontSize: 12, color: '#475569' }}>Zoom</span>
       {ZOOMS.map((z) => (
         <button
@@ -181,7 +191,10 @@ export function Toolbar({ selectedId }: Props) {
       </button>
       <button
         style={btn}
-        onClick={() => exportJson(state, `${safeName}.json`)}
+        onClick={() => {
+          exportJson(state, `${safeName}.json`);
+          markExported();
+        }}
         title="Download the current project as JSON"
       >
         Export JSON

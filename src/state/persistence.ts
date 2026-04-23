@@ -3,6 +3,24 @@ import { buildSampleProject } from './sampleData';
 
 const KEY_V1 = 'gantt-test:v1';
 const KEY_V2 = 'gantt-test:v2';
+const KEY_LAST_EXPORT = 'gantt-test:lastExport';
+
+export function getLastExportedAt(): number | null {
+  try {
+    const v = localStorage.getItem(KEY_LAST_EXPORT);
+    return v ? Number(v) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setLastExportedAt(ts: number): void {
+  try {
+    localStorage.setItem(KEY_LAST_EXPORT, String(ts));
+  } catch {
+    // ignore
+  }
+}
 
 function genId(): string {
   return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

@@ -4,6 +4,7 @@ import { COLUMNS } from './grid/columns';
 import type { NavDirection } from './grid/Cell';
 import { Gantt } from './gantt/Gantt';
 import { Toolbar } from './toolbar/Toolbar';
+import { ExportReminder } from './ExportReminder';
 import { ProjectProvider, useDispatch, useProject, useWorkspace } from './state/store';
 import { computeVisibleRows } from './state/visibleRows';
 
@@ -91,6 +92,7 @@ function Workspace() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+      <ExportReminder />
       <Toolbar selectedId={activeCell?.rowId ?? null} />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <Grid

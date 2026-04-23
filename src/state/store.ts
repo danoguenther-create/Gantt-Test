@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useReducer, useState, type Dispatch, type ReactNode } from 'react';
 import { createElement } from 'react';
 import type {
   Dependency,
@@ -15,8 +15,10 @@ import { rollupSummaries, hasChildren } from '../scheduling/rollup';
 import { addWorkingDays, diffWorkingDays } from '../scheduling/workingDays';
 import {
   createDefaultWorkspace,
+  getLastExportedAt,
   loadWorkspaceFromLocalStorage,
   saveWorkspaceToLocalStorage,
+  setLastExportedAt,
 } from './persistence';
 
 export type ProjectAction =
@@ -275,6 +277,14 @@ function workspaceReducer(ws: Workspace, action: Action): Workspace {
 const WorkspaceCtx = createContext<Workspace | null>(null);
 const DispatchCtx = createContext<Dispatch<Action> | null>(null);
 
+export interface SaveMeta {
+  lastSavedAt: number | null;
+  lastExportedAt: number | null;
+  markExported: () => void;
+}
+
+const SaveMetaCtx = createContext<SaveMeta | null>(null);
+
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [workspace, dispatch] = useReducer(workspaceReducer, null, () => {
     const loaded = loadWorkspaceFromLocalStorage();
@@ -286,16 +296,40 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return { ...ws, projects };
   });
 
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [lastExportedAt, setLastExportedAtState] = useState<number | null>(() => getLastExportedAt());
+
   useEffect(() => {
-    const id = setTimeout(() => saveWorkspaceToLocalStorage(workspace), 250);
+    const id = setTimeout(() => {
+      saveWorkspaceToLocalStorage(workspace);
+      setLastSavedAt(Date.now());
+    }, 250);
     return () => clearTimeout(id);
   }, [workspace]);
+
+  const markExported = useCallback(() => {
+    const ts = Date.now();
+    setLastExportedAtState(ts);
+    setLastExportedAt(ts);
+  }, []);
+
+  const meta: SaveMeta = { lastSavedAt, lastExportedAt, markExported };
 
   return createElement(
     WorkspaceCtx.Provider,
     { value: workspace },
-    createElement(DispatchCtx.Provider, { value: dispatch }, children),
+    createElement(
+      DispatchCtx.Provider,
+      { value: dispatch },
+      createElement(SaveMetaCtx.Provider, { value: meta }, children),
+    ),
   );
+}
+
+export function useSaveMeta(): SaveMeta {
+  const m = useContext(SaveMetaCtx);
+  if (!m) throw new Error('ProjectProvider missing');
+  return m;
 }
 
 export function useWorkspace(): Workspace {
