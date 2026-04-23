@@ -4,14 +4,19 @@ import { useDispatch } from '../state/store';
 import { parsePredecessors, formatPredecessors } from '../scheduling/predecessors';
 import type { ColumnId } from './columns';
 
+export type NavDirection = 'left' | 'right' | 'up' | 'down';
+
 interface Props {
   task: Task;
   column: ColumnId;
+  colIdx: number;
   width: number;
   depth: number;
   hasChildren: boolean;
   selected: boolean;
-  onSelect: () => void;
+  active: boolean;
+  onActivate: (colIdx: number) => void;
+  onNavigate: (dir: NavDirection) => void;
 }
 
 const STATUSES: Status[] = ['Not Started', 'In Progress', 'Complete'];
@@ -26,20 +31,45 @@ function parseDuration(text: string): number | null {
   return Number(m[1]);
 }
 
-export function Cell({ task, column, width, depth, hasChildren, selected, onSelect }: Props) {
+function isPrintableKey(e: React.KeyboardEvent): boolean {
+  return e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
+export function Cell({
+  task,
+  column,
+  colIdx,
+  width,
+  depth,
+  hasChildren,
+  selected,
+  active,
+  onActivate,
+  onNavigate,
+}: Props) {
   const dispatch = useDispatch();
   const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const [initialEditValue, setInitialEditValue] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const cellRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (editing && inputRef.current) {
       inputRef.current.focus();
-      if (inputRef.current instanceof HTMLInputElement) inputRef.current.select();
+      if (initialEditValue === null) inputRef.current.select();
     }
-  }, [editing]);
+  }, [editing, initialEditValue]);
+
+  useEffect(() => {
+    if (active && !editing && cellRef.current) {
+      cellRef.current.focus();
+      cellRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }, [active, editing]);
 
   const commitText = (raw: string) => {
     setEditing(false);
+    setInitialEditValue(null);
     if (column === 'name' && raw !== task.name) dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { name: raw } });
     else if (column === 'assignee' && raw !== (task.assignee ?? '')) dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { assignee: raw } });
     else if (column === 'duration') {
@@ -55,6 +85,65 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
     }
   };
 
+  const cancelEdit = () => {
+    setEditing(false);
+    setInitialEditValue(null);
+  };
+
+  const startEditing = (withValue: string | null) => {
+    if (column === 'status') return;
+    setInitialEditValue(withValue);
+    setEditing(true);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitText(e.currentTarget.value);
+      onNavigate('down');
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      commitText(e.currentTarget.value);
+      onNavigate(e.shiftKey ? 'left' : 'right');
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!active || editing) return;
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      onNavigate(e.shiftKey ? 'left' : 'right');
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      onNavigate('right');
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      onNavigate('left');
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      onNavigate('down');
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      onNavigate('up');
+    } else if (e.key === 'Enter' || e.key === 'F2') {
+      e.preventDefault();
+      if (column === 'status') return;
+      startEditing(null);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (column === 'name' || column === 'assignee' || column === 'predecessors') {
+        e.preventDefault();
+        commitText('');
+      }
+    } else if (isPrintableKey(e)) {
+      if (column === 'status' || column === 'start' || column === 'finish') return;
+      e.preventDefault();
+      startEditing(e.key);
+    }
+  };
+
   const baseStyle: React.CSSProperties = {
     width,
     minWidth: width,
@@ -65,22 +154,32 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
     boxSizing: 'border-box',
     borderRight: '1px solid #e5e7eb',
     background: selected ? '#e0f2fe' : undefined,
+    boxShadow: active ? 'inset 0 0 0 2px #2563eb' : undefined,
     cursor: 'cell',
     fontSize: 12,
     color: task.hasError ? '#b91c1c' : undefined,
     overflow: 'hidden',
     whiteSpace: 'nowrap',
     textOverflow: 'ellipsis',
+    outline: 'none',
   };
 
-  const onDblClick = () => {
-    if (column !== 'status') setEditing(true);
+  const onClick = () => onActivate(colIdx);
+  const onDoubleClick = () => startEditing(null);
+
+  const commonCellProps = {
+    ref: cellRef,
+    tabIndex: -1,
+    style: baseStyle,
+    onClick,
+    onDoubleClick,
+    onKeyDown: handleCellKeyDown,
   };
 
   if (column === 'name') {
     const indent = depth * 16;
     return (
-      <div style={baseStyle} onClick={onSelect} onDoubleClick={onDblClick}>
+      <div {...commonCellProps}>
         <div style={{ width: indent, flexShrink: 0 }} />
         {hasChildren ? (
           <span
@@ -97,13 +196,10 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
         )}
         {editing ? (
           <input
-            ref={inputRef as React.RefObject<HTMLInputElement>}
-            defaultValue={task.name}
+            ref={inputRef}
+            defaultValue={initialEditValue ?? task.name}
             onBlur={(e) => commitText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              else if (e.key === 'Escape') setEditing(false);
-            }}
+            onKeyDown={handleEditKeyDown}
             style={{ flex: 1, border: 'none', outline: '1px solid #2563eb', padding: '2px 4px', fontSize: 12 }}
           />
         ) : (
@@ -117,11 +213,17 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
 
   if (column === 'status') {
     return (
-      <div style={baseStyle} onClick={onSelect}>
+      <div {...commonCellProps}>
         <select
           value={task.status}
           onChange={(e) => dispatch({ type: 'SET_STATUS', id: task.id, status: e.target.value as Status })}
+          onKeyDown={(e) => {
+            if (e.key === 'Tab' || e.key === 'Enter' || e.key.startsWith('Arrow')) {
+              handleCellKeyDown(e as unknown as React.KeyboardEvent<HTMLDivElement>);
+            }
+          }}
           style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 12, outline: 'none', color: 'inherit' }}
+          tabIndex={-1}
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -154,14 +256,11 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
     return (
       <div style={baseStyle}>
         <input
-          ref={inputRef as React.RefObject<HTMLInputElement>}
+          ref={inputRef}
           type={inputType}
-          defaultValue={value}
+          defaultValue={initialEditValue ?? value}
           onBlur={(e) => commitText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-            else if (e.key === 'Escape') setEditing(false);
-          }}
+          onKeyDown={handleEditKeyDown}
           style={{ flex: 1, border: 'none', outline: '1px solid #2563eb', padding: '2px 4px', fontSize: 12 }}
         />
       </div>
@@ -169,7 +268,7 @@ export function Cell({ task, column, width, depth, hasChildren, selected, onSele
   }
 
   return (
-    <div style={baseStyle} onClick={onSelect} onDoubleClick={onDblClick}>
+    <div {...commonCellProps}>
       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
     </div>
   );

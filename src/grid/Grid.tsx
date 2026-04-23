@@ -1,18 +1,28 @@
 import { forwardRef } from 'react';
 import type { VisibleRow } from '../types';
 import { Row } from './Row';
+import { Cell as _Cell } from './Cell';
+import type { NavDirection } from './Cell';
 import { COLUMNS, GRID_WIDTH, GHOST_ROWS, HEADER_HEIGHT, ROW_HEIGHT } from './columns';
 import { useDispatch } from '../state/store';
 
+void _Cell;
+
+export interface ActiveCell {
+  rowId: string;
+  colIdx: number;
+}
+
 interface Props {
   rows: VisibleRow[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  activeCell: ActiveCell | null;
+  onActivate: (rowId: string, colIdx: number) => void;
+  onNavigate: (dir: NavDirection) => void;
   onScroll: (top: number) => void;
 }
 
 export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
-  { rows, selectedId, onSelect, onScroll },
+  { rows, activeCell, onActivate, onNavigate, onScroll },
   ref,
 ) {
   const dispatch = useDispatch();
@@ -54,14 +64,23 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
       >
         <div style={{ position: 'relative', height: totalRows * ROW_HEIGHT, width: GRID_WIDTH }}>
-          {rows.map((row) => (
-            <div
-              key={row.task.id}
-              style={{ position: 'absolute', top: row.index * ROW_HEIGHT, left: 0, width: GRID_WIDTH }}
-            >
-              <Row row={row} selected={selectedId === row.task.id} onSelect={() => onSelect(row.task.id)} />
-            </div>
-          ))}
+          {rows.map((row) => {
+            const isActiveRow = activeCell?.rowId === row.task.id;
+            return (
+              <div
+                key={row.task.id}
+                style={{ position: 'absolute', top: row.index * ROW_HEIGHT, left: 0, width: GRID_WIDTH }}
+              >
+                <Row
+                  row={row}
+                  selected={isActiveRow}
+                  activeColIdx={isActiveRow ? activeCell!.colIdx : null}
+                  onActivate={(colIdx) => onActivate(row.task.id, colIdx)}
+                  onNavigate={onNavigate}
+                />
+              </div>
+            );
+          })}
           {Array.from({ length: GHOST_ROWS }).map((_, i) => {
             const idx = rows.length + i;
             return (
