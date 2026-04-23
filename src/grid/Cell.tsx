@@ -140,7 +140,10 @@ export function Cell({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       onNavigate('up');
-    } else if (e.key === 'Enter' || e.key === 'F2') {
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      onNavigate('down');
+    } else if (e.key === 'F2') {
       e.preventDefault();
       if (column === 'status') return;
       startEditing(null);
