@@ -82,6 +82,16 @@ export function Bar({ task, rowIndex, metrics, isSummary }: Props) {
         <rect x={xStart} y={y + BAR_HEIGHT / 2 - 2} width={width} height={4} fill={fill} />
         <polygon points={`${xStart},${y + BAR_HEIGHT / 2 - 2} ${xStart + capW},${y + BAR_HEIGHT / 2 - 2} ${xStart},${y + BAR_HEIGHT / 2 - 2 + capH}`} fill={fill} />
         <polygon points={`${xFinish},${y + BAR_HEIGHT / 2 - 2} ${xFinish - capW},${y + BAR_HEIGHT / 2 - 2} ${xFinish},${y + BAR_HEIGHT / 2 - 2 + capH}`} fill={fill} />
+        <text
+          x={xFinish + 4}
+          y={y + BAR_HEIGHT - 4}
+          fontSize={11}
+          fontWeight={600}
+          fill="#0f172a"
+          pointerEvents="none"
+        >
+          {task.name}
+        </text>
         <title>{task.name}</title>
       </g>
     );
