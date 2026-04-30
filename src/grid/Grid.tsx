@@ -3,7 +3,7 @@ import type { VisibleRow } from '../types';
 import { Row } from './Row';
 import { Cell as _Cell } from './Cell';
 import type { NavDirection } from './Cell';
-import { COLUMNS, GRID_WIDTH, GHOST_ROWS, HEADER_HEIGHT, ROW_HEIGHT } from './columns';
+import { COLUMNS, GRID_WIDTH, GHOST_ROWS, HEADER_HEIGHT, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './columns';
 import { useDispatch } from '../state/store';
 
 void _Cell;
@@ -44,6 +44,21 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
           color: '#334155',
         }}
       >
+        <div
+          style={{
+            width: ROW_NUMBER_WIDTH,
+            padding: '0 6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            borderRight: '1px solid #cbd5e1',
+            boxSizing: 'border-box',
+            color: '#64748b',
+          }}
+          title="Row number used in predecessors"
+        >
+          #
+        </div>
         {COLUMNS.map((c) => (
           <div
             key={c.id}
@@ -105,6 +120,14 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                 }}
                 title="Click to add a new task"
               >
+                <div
+                  style={{
+                    width: ROW_NUMBER_WIDTH,
+                    minWidth: ROW_NUMBER_WIDTH,
+                    borderRight: '1px solid #eef2f7',
+                    boxSizing: 'border-box',
+                  }}
+                />
                 {COLUMNS.map((c) => (
                   <div
                     key={c.id}

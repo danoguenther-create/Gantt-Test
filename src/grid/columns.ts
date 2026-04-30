@@ -16,7 +16,8 @@ export const COLUMNS: ColumnDef[] = [
   { id: 'predecessors', header: 'Predecessors', width: 120 },
 ];
 
-export const GRID_WIDTH = COLUMNS.reduce((acc, c) => acc + c.width, 0);
+export const ROW_NUMBER_WIDTH = 44;
+export const GRID_WIDTH = ROW_NUMBER_WIDTH + COLUMNS.reduce((acc, c) => acc + c.width, 0);
 export const ROW_HEIGHT = 28;
 export const HEADER_HEIGHT = 36;
 export const GHOST_ROWS = 20;
