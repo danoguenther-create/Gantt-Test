@@ -3,7 +3,7 @@ import type { ProjectState, VisibleRow } from '../types';
 import { Bar } from './Bar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
-import { computeTicks, computeTimeline, pxForDate } from './timeline';
+import { computeTicks, computeTimeline, computeWeekBands, pxForDate } from './timeline';
 import { GHOST_ROWS, ROW_HEIGHT } from '../grid/columns';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
 export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, onScroll }, ref) {
   const metrics = useMemo(() => computeTimeline(state), [state]);
   const ticks = useMemo(() => computeTicks(metrics, state.zoom), [metrics, state.zoom]);
+  const weekBands = useMemo(() => computeWeekBands(metrics), [metrics]);
 
   const visibleIndexById = useMemo(() => {
     const m = new Map<string, number>();
@@ -44,6 +45,12 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
               </pattern>
             </defs>
             <rect x={0} y={0} width={metrics.width} height={bodyHeight} fill="url(#rowStripe)" />
+            {weekBands.map((band) => (
+              <g key={band.iso}>
+                {band.shaded ? <rect x={band.x} y={0} width={band.width} height={bodyHeight} fill="#e2e8f0" opacity={0.32} /> : null}
+                <line x1={band.x} y1={0} x2={band.x} y2={bodyHeight} stroke="#cbd5e1" strokeOpacity={0.8} />
+              </g>
+            ))}
             {ticks.majorTicks.map((t) => (
               <line key={`gridM${t.iso}`} x1={t.x} y1={0} x2={t.x} y2={bodyHeight} stroke="#e2e8f0" />
             ))}

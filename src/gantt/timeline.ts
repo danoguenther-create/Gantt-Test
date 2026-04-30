@@ -51,6 +51,35 @@ export interface TickConfig {
   minorTicks: { iso: string; label: string; x: number }[];
 }
 
+export interface WeekBand {
+  iso: string;
+  x: number;
+  width: number;
+  shaded: boolean;
+}
+
+export function computeWeekBands(metrics: TimelineMetrics): WeekBand[] {
+  const bands: WeekBand[] = [];
+  const origin = parseISO(metrics.originISO);
+  const end = parseISO(metrics.endISO);
+  const cur = new Date(origin);
+  while (cur.getDay() !== 1) cur.setDate(cur.getDate() + 1);
+
+  let index = 0;
+  while (cur <= end) {
+    const iso = toISO(cur);
+    const x = pxForDate(metrics, iso);
+    const next = new Date(cur);
+    next.setDate(next.getDate() + 7);
+    const nextX = Math.min(pxForDate(metrics, toISO(next)), metrics.width);
+    bands.push({ iso, x, width: Math.max(nextX - x, 0), shaded: index % 2 === 1 });
+    cur.setDate(cur.getDate() + 7);
+    index += 1;
+  }
+  return bands;
+}
+
+
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function computeTicks(metrics: TimelineMetrics, zoom: ZoomLevel): TickConfig {
