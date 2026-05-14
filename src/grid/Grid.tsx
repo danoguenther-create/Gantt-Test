@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import type { VisibleRow } from '../types';
 import { Row } from './Row';
 import { Cell as _Cell } from './Cell';
@@ -29,6 +29,13 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
 ) {
   const dispatch = useDispatch();
   const totalRows = rows.length + GHOST_ROWS;
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
+
+  const resetDragState = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
@@ -84,16 +91,54 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
           {rows.map((row) => {
             const isActiveRow = activeCell?.rowId === row.task.id;
             const pendingColIdx = pendingEditAt?.rowId === row.task.id ? pendingEditAt.colIdx : null;
+            const isDragging = draggingId === row.task.id;
+            const dropPosition = dropTarget?.id === row.task.id ? dropTarget.position : null;
             return (
               <div
                 key={row.task.id}
-                style={{ position: 'absolute', top: row.index * ROW_HEIGHT, left: 0, width: GRID_WIDTH }}
+                onDragOver={(e) => {
+                  if (!draggingId || draggingId === row.task.id) return;
+                  e.preventDefault();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                  setDropTarget({ id: row.task.id, position });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const sourceId = draggingId ?? e.dataTransfer.getData('text/plain');
+                  if (sourceId && sourceId !== row.task.id) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+                    dispatch({ type: 'REORDER_TASK', draggedId: sourceId, targetId: row.task.id, position });
+                    onActivate(sourceId, 0);
+                  }
+                  resetDragState();
+                }}
+                style={{
+                  position: 'absolute',
+                  top: row.index * ROW_HEIGHT,
+                  left: 0,
+                  width: GRID_WIDTH,
+                  opacity: isDragging ? 0.45 : 1,
+                  zIndex: isDragging || dropPosition ? 1 : 0,
+                }}
               >
                 <Row
                   row={row}
                   selected={isActiveRow}
                   activeColIdx={isActiveRow ? activeCell!.colIdx : null}
                   pendingEditColIdx={pendingColIdx}
+                  dropPosition={dropPosition}
+                  draggableHandle={true}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', row.task.id);
+                    setDraggingId(row.task.id);
+                  }}
+                  onDragEnd={resetDragState}
                   onActivate={(colIdx) => onActivate(row.task.id, colIdx)}
                   onNavigate={onNavigate}
                   onEditStarted={onEditStarted}

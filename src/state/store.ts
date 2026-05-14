@@ -32,6 +32,7 @@ export type ProjectAction =
   | { type: 'SET_STATUS'; id: TaskId; status: Status }
   | { type: 'ADD_TASK_BELOW'; id: TaskId }
   | { type: 'ADD_TASK_AT_END' }
+  | { type: 'REORDER_TASK'; draggedId: TaskId; targetId: TaskId; position: 'before' | 'after' }
   | { type: 'DELETE_TASK'; id: TaskId }
   | { type: 'INDENT'; id: TaskId }
   | { type: 'OUTDENT'; id: TaskId }
@@ -63,6 +64,25 @@ function nextTaskId(state: ProjectState): string {
   let n = 1;
   while (state.tasks[String(n)]) n++;
   return String(n);
+}
+
+function isDescendantOf(state: ProjectState, candidateId: TaskId, ancestorId: TaskId): boolean {
+  let current = state.tasks[candidateId]?.parentId ?? null;
+  while (current !== null) {
+    if (current === ancestorId) return true;
+    current = state.tasks[current]?.parentId ?? null;
+  }
+  return false;
+}
+
+function normalizeSiblings(tasks: Record<TaskId, Task>, parentId: TaskId | null): TaskId[] {
+  const siblings = Object.values(tasks)
+    .filter((t) => t.parentId === parentId)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  siblings.forEach((s, i) => {
+    tasks[s.id] = { ...tasks[s.id], order: i };
+  });
+  return siblings.map((s) => s.id);
 }
 
 function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
@@ -164,6 +184,31 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
       const tasks = { ...state.tasks, [id]: newTask };
       const rootOrder = [...state.rootOrder, id];
+      return recompute({ ...state, tasks, rootOrder });
+    }
+    case 'REORDER_TASK': {
+      if (action.draggedId === action.targetId) return state;
+      const dragged = state.tasks[action.draggedId];
+      const target = state.tasks[action.targetId];
+      if (!dragged || !target) return state;
+      if (isDescendantOf(state, target.id, dragged.id)) return state;
+
+      const oldParentId = dragged.parentId;
+      const newParentId = target.parentId;
+      const targetOrder = target.order;
+      const newOrder = action.position === 'before' ? targetOrder - 0.5 : targetOrder + 0.5;
+      const tasks = {
+        ...state.tasks,
+        [dragged.id]: { ...dragged, parentId: newParentId, order: newOrder },
+      };
+
+      const affectedParents = new Set<TaskId | null>([oldParentId, newParentId]);
+      let rootOrder = state.rootOrder;
+      for (const parentId of affectedParents) {
+        const orderedIds = normalizeSiblings(tasks, parentId);
+        if (parentId === null) rootOrder = orderedIds;
+      }
+
       return recompute({ ...state, tasks, rootOrder });
     }
     case 'DELETE_TASK': {

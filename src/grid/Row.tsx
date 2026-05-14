@@ -1,3 +1,4 @@
+import type { DragEvent } from 'react';
 import type { VisibleRow } from '../types';
 import { Cell, type NavDirection } from './Cell';
 import { COLUMNS, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './columns';
@@ -7,22 +8,58 @@ interface Props {
   selected: boolean;
   activeColIdx: number | null;
   pendingEditColIdx: number | null;
+  dropPosition: 'before' | 'after' | null;
+  draggableHandle: boolean;
+  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
   onEditStarted: () => void;
 }
 
-export function Row({ row, selected, activeColIdx, pendingEditColIdx, onActivate, onNavigate, onEditStarted }: Props) {
+export function Row({
+  row,
+  selected,
+  activeColIdx,
+  pendingEditColIdx,
+  dropPosition,
+  draggableHandle,
+  onDragStart,
+  onDragEnd,
+  onActivate,
+  onNavigate,
+  onEditStarted,
+}: Props) {
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         height: ROW_HEIGHT,
         borderBottom: '1px solid #e5e7eb',
       }}
     >
+      {dropPosition ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: dropPosition === 'before' ? 0 : undefined,
+            bottom: dropPosition === 'after' ? 0 : undefined,
+            height: 2,
+            background: '#2563eb',
+            boxShadow: '0 0 0 1px rgba(37, 99, 235, 0.2)',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
+        />
+      ) : null}
       <div
-        title={`Row ${row.task.id}`}
+        draggable={draggableHandle}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        title={`Drag row ${row.task.id} to reorder`}
         style={{
           width: ROW_NUMBER_WIDTH,
           minWidth: ROW_NUMBER_WIDTH,
@@ -35,6 +72,7 @@ export function Row({ row, selected, activeColIdx, pendingEditColIdx, onActivate
           borderRight: '1px solid #e5e7eb',
           background: selected ? '#e0f2fe' : '#f8fafc',
           color: '#64748b',
+          cursor: 'grab',
           fontSize: 12,
           fontVariantNumeric: 'tabular-nums',
           userSelect: 'none',
