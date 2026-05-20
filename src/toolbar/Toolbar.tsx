@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useDispatch, useProject, useSaveMeta, useWorkspace } from '../state/store';
 import { exportJson, importJsonFromFile } from '../state/persistence';
 import { buildSampleProject } from '../state/sampleData';
@@ -19,6 +19,7 @@ export function Toolbar({ selectedId }: Props) {
   const now = useNow(15_000);
   const fileInput = useRef<HTMLInputElement>(null);
   const importMode = useRef<'replace' | 'new'>('replace');
+  const [pdfExporting, setPdfExporting] = useState(false);
 
   const currentProject = workspace.projects[workspace.currentProjectId];
 
@@ -198,6 +199,24 @@ export function Toolbar({ selectedId }: Props) {
         title="Download the current project as JSON"
       >
         Export JSON
+      </button>
+      <button
+        style={pdfExporting ? disabled : btn}
+        disabled={pdfExporting}
+        onClick={async () => {
+          setPdfExporting(true);
+          try {
+            const { exportProjectPdf } = await import('../pdfExport');
+            await exportProjectPdf(state, currentProject.name, `${safeName}.pdf`);
+          } catch (err) {
+            alert(`PDF export failed: ${(err as Error).message}`);
+          } finally {
+            setPdfExporting(false);
+          }
+        }}
+        title="Export the entire Gantt chart as a one-page PDF (page size adjusts to fit)"
+      >
+        {pdfExporting ? 'Exporting…' : 'Export PDF'}
       </button>
       <button style={btn} onClick={() => pickFile('replace')} title="Replace current project with a JSON file">
         Import JSON
