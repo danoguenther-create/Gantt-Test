@@ -18,6 +18,7 @@ interface Props {
   autoEdit: boolean;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onExtendSelection: (dir: 'up' | 'down') => void;
   onEditStarted: () => void;
 }
 
@@ -49,6 +50,7 @@ export function Cell({
   autoEdit,
   onActivate,
   onNavigate,
+  onExtendSelection,
   onEditStarted,
 }: Props) {
   const dispatch = useDispatch();
@@ -136,10 +138,12 @@ export function Cell({
       onNavigate('left');
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      onNavigate('down');
+      if (e.shiftKey) onExtendSelection('down');
+      else onNavigate('down');
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      onNavigate('up');
+      if (e.shiftKey) onExtendSelection('up');
+      else onNavigate('up');
     } else if (e.key === 'Enter') {
       e.preventDefault();
       onNavigate('down');

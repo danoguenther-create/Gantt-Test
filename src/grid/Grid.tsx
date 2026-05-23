@@ -17,14 +17,30 @@ interface Props {
   rows: VisibleRow[];
   activeCell: ActiveCell | null;
   pendingEditAt: ActiveCell | null;
+  selectedRowIds: Set<string>;
   onActivate: (rowId: string, colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onExtendSelection: (dir: 'up' | 'down') => void;
+  onRowMouseDown: (rowId: string, mods: { shift: boolean; meta: boolean }) => void;
+  onRowMouseEnter: (rowId: string) => void;
   onEditStarted: () => void;
   onScroll: (top: number) => void;
 }
 
 export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
-  { rows, activeCell, pendingEditAt, onActivate, onNavigate, onEditStarted, onScroll },
+  {
+    rows,
+    activeCell,
+    pendingEditAt,
+    selectedRowIds,
+    onActivate,
+    onNavigate,
+    onExtendSelection,
+    onRowMouseDown,
+    onRowMouseEnter,
+    onEditStarted,
+    onScroll,
+  },
   ref,
 ) {
   const dispatch = useDispatch();
@@ -84,18 +100,25 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
       </div>
       <div
         ref={ref}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: GRID_WIDTH }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: GRID_WIDTH, userSelect: 'none' }}
         onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
       >
         <div style={{ position: 'relative', height: totalRows * ROW_HEIGHT, width: GRID_WIDTH }}>
           {rows.map((row) => {
             const isActiveRow = activeCell?.rowId === row.task.id;
+            const isSelectedRow = selectedRowIds.has(row.task.id);
             const pendingColIdx = pendingEditAt?.rowId === row.task.id ? pendingEditAt.colIdx : null;
             const isDragging = draggingId === row.task.id;
             const dropPosition = dropTarget?.id === row.task.id ? dropTarget.position : null;
             return (
               <div
                 key={row.task.id}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  if ((e.target as HTMLElement).closest('[data-row-gutter]')) return;
+                  onRowMouseDown(row.task.id, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
+                }}
+                onMouseEnter={() => onRowMouseEnter(row.task.id)}
                 onDragOver={(e) => {
                   if (!draggingId || draggingId === row.task.id) return;
                   e.preventDefault();
@@ -128,7 +151,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
               >
                 <Row
                   row={row}
-                  selected={isActiveRow}
+                  selected={isSelectedRow}
                   activeColIdx={isActiveRow ? activeCell!.colIdx : null}
                   pendingEditColIdx={pendingColIdx}
                   dropPosition={dropPosition}
@@ -141,6 +164,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   onDragEnd={resetDragState}
                   onActivate={(colIdx) => onActivate(row.task.id, colIdx)}
                   onNavigate={onNavigate}
+                  onExtendSelection={onExtendSelection}
                   onEditStarted={onEditStarted}
                 />
               </div>

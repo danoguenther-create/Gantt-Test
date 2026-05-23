@@ -7,11 +7,12 @@ import type { ZoomLevel } from '../types';
 
 interface Props {
   selectedId: string | null;
+  selectedIds: string[];
 }
 
 const ZOOMS: ZoomLevel[] = ['day', 'week', 'month'];
 
-export function Toolbar({ selectedId }: Props) {
+export function Toolbar({ selectedId, selectedIds }: Props) {
   const state = useProject();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
@@ -137,9 +138,15 @@ export function Toolbar({ selectedId }: Props) {
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        onClick={() => selectedId && dispatch({ type: 'DELETE_TASK', id: selectedId })}
+        title={selectedIds.length > 1 ? `Delete ${selectedIds.length} selected rows` : 'Delete the selected row'}
+        onClick={() => {
+          const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+          if (ids.length === 0) return;
+          if (ids.length > 1 && !confirm(`Delete ${ids.length} selected rows (including any sub-tasks)?`)) return;
+          for (const id of ids) dispatch({ type: 'DELETE_TASK', id });
+        }}
       >
-        Delete Row
+        {selectedIds.length > 1 ? `Delete Rows (${selectedIds.length})` : 'Delete Row'}
       </button>
       <button
         style={selectedId ? btn : disabled}

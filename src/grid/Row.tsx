@@ -14,6 +14,7 @@ interface Props {
   onDragEnd: () => void;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
+  onExtendSelection: (dir: 'up' | 'down') => void;
   onEditStarted: () => void;
 }
 
@@ -28,6 +29,7 @@ export function Row({
   onDragEnd,
   onActivate,
   onNavigate,
+  onExtendSelection,
   onEditStarted,
 }: Props) {
   return (
@@ -56,6 +58,7 @@ export function Row({
         />
       ) : null}
       <div
+        data-row-gutter="true"
         draggable={draggableHandle}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
@@ -70,7 +73,7 @@ export function Row({
           justifyContent: 'flex-end',
           boxSizing: 'border-box',
           borderRight: '1px solid #e5e7eb',
-          background: selected ? '#e0f2fe' : '#f8fafc',
+          background: selected ? '#bae6fd' : '#f8fafc',
           color: '#64748b',
           cursor: 'grab',
           fontSize: 12,
@@ -94,6 +97,7 @@ export function Row({
           autoEdit={pendingEditColIdx === idx}
           onActivate={onActivate}
           onNavigate={onNavigate}
+          onExtendSelection={onExtendSelection}
           onEditStarted={onEditStarted}
         />
       ))}
