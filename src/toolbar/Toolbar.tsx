@@ -8,11 +8,13 @@ import type { ZoomLevel } from '../types';
 interface Props {
   selectedId: string | null;
   selectedIds: string[];
+  wrap: boolean;
+  onToggleWrap: () => void;
 }
 
 const ZOOMS: ZoomLevel[] = ['day', 'week', 'month'];
 
-export function Toolbar({ selectedId, selectedIds }: Props) {
+export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap }: Props) {
   const state = useProject();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
@@ -81,6 +83,25 @@ export function Toolbar({ selectedId, selectedIds }: Props) {
   };
 
   const safeName = currentProject.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'project';
+
+  const timestamp = () => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  };
+
+  const runPdfExport = async (respectCollapsed: boolean) => {
+    setPdfExporting(true);
+    try {
+      const { exportProjectPdf } = await import('../pdfExport');
+      const suffix = respectCollapsed ? '_view' : '';
+      await exportProjectPdf(state, currentProject.name, `${safeName}${suffix}_${timestamp()}.pdf`, { respectCollapsed });
+    } catch (err) {
+      alert(`PDF export failed: ${(err as Error).message}`);
+    } finally {
+      setPdfExporting(false);
+    }
+  };
 
   return (
     <div
@@ -151,16 +172,24 @@ export function Toolbar({ selectedId, selectedIds }: Props) {
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        title="Indent (make child of previous sibling)"
-        onClick={() => selectedId && dispatch({ type: 'INDENT', id: selectedId })}
+        title={selectedIds.length > 1 ? `Indent ${selectedIds.length} selected rows (make children of the row above)` : 'Indent (make child of previous sibling)'}
+        onClick={() => {
+          const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+          // top-to-bottom so each selected row nests under the same preceding row
+          for (const id of ids) dispatch({ type: 'INDENT', id });
+        }}
       >
         → Indent
       </button>
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        title="Outdent"
-        onClick={() => selectedId && dispatch({ type: 'OUTDENT', id: selectedId })}
+        title={selectedIds.length > 1 ? `Outdent ${selectedIds.length} selected rows` : 'Outdent'}
+        onClick={() => {
+          const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+          // bottom-to-top so the outdented rows keep their relative order
+          for (const id of [...ids].reverse()) dispatch({ type: 'OUTDENT', id });
+        }}
       >
         ← Outdent
       </button>
@@ -187,6 +216,15 @@ export function Toolbar({ selectedId, selectedIds }: Props) {
 
       <span style={{ width: 8 }} />
       <button
+        style={{ ...btn, background: wrap ? '#2563eb' : '#fff', color: wrap ? '#fff' : '#0f172a' }}
+        onClick={onToggleWrap}
+        title="Zeilenumbruch in Zellen an/aus (erhöht die Zeilenhöhe)"
+      >
+        Wrap
+      </button>
+
+      <span style={{ width: 8 }} />
+      <button
         style={btn}
         title="Replace the current project with the demo sample data"
         onClick={() => {
@@ -200,7 +238,7 @@ export function Toolbar({ selectedId, selectedIds }: Props) {
       <button
         style={btn}
         onClick={() => {
-          exportJson(state, `${safeName}.json`);
+          exportJson(state, `${safeName}_${timestamp()}.json`);
           markExported();
         }}
         title="Download the current project as JSON"
@@ -210,20 +248,18 @@ export function Toolbar({ selectedId, selectedIds }: Props) {
       <button
         style={pdfExporting ? disabled : btn}
         disabled={pdfExporting}
-        onClick={async () => {
-          setPdfExporting(true);
-          try {
-            const { exportProjectPdf } = await import('../pdfExport');
-            await exportProjectPdf(state, currentProject.name, `${safeName}.pdf`);
-          } catch (err) {
-            alert(`PDF export failed: ${(err as Error).message}`);
-          } finally {
-            setPdfExporting(false);
-          }
-        }}
-        title="Export the entire Gantt chart as a one-page PDF (page size adjusts to fit)"
+        onClick={() => runPdfExport(false)}
+        title="Export the entire Gantt chart as a one-page PDF, with all rows expanded (page size adjusts to fit)"
       >
         {pdfExporting ? 'Exporting…' : 'Export PDF'}
+      </button>
+      <button
+        style={pdfExporting ? disabled : btn}
+        disabled={pdfExporting}
+        onClick={() => runPdfExport(true)}
+        title="Export a PDF of the current view — collapsed parent rows stay collapsed"
+      >
+        {pdfExporting ? 'Exporting…' : 'Export View PDF'}
       </button>
       <button style={btn} onClick={() => pickFile('replace')} title="Replace current project with a JSON file">
         Import JSON

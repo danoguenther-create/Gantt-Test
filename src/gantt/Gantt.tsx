@@ -4,15 +4,16 @@ import { Bar } from './Bar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
 import { computeTicks, computeTimeline, computeWeekBands, pxForDate } from './timeline';
-import { GHOST_ROWS, ROW_HEIGHT } from '../grid/columns';
+import { GHOST_ROWS } from '../grid/columns';
 
 interface Props {
   state: ProjectState;
   rows: VisibleRow[];
+  rowHeight: number;
   onScroll: (top: number) => void;
 }
 
-export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, onScroll }, ref) {
+export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, rowHeight, onScroll }, ref) {
   const metrics = useMemo(() => computeTimeline(state), [state]);
   const ticks = useMemo(() => computeTicks(metrics, state.zoom), [metrics, state.zoom]);
   const weekBands = useMemo(() => computeWeekBands(metrics), [metrics]);
@@ -23,7 +24,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
     return m;
   }, [rows]);
 
-  const bodyHeight = (rows.length + GHOST_ROWS) * ROW_HEIGHT;
+  const bodyHeight = (rows.length + GHOST_ROWS) * rowHeight;
   const todayX = pxForDate(metrics, new Date().toISOString().slice(0, 10));
 
   return (
@@ -39,9 +40,9 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
           </div>
           <svg width={metrics.width} height={Math.max(bodyHeight, 1)} style={{ display: 'block' }}>
             <defs>
-              <pattern id="rowStripe" x="0" y="0" width={metrics.pxPerDay * 7} height={ROW_HEIGHT * 2} patternUnits="userSpaceOnUse">
-                <rect x="0" y="0" width={metrics.pxPerDay * 7} height={ROW_HEIGHT} fill="#ffffff" />
-                <rect x="0" y={ROW_HEIGHT} width={metrics.pxPerDay * 7} height={ROW_HEIGHT} fill="#f8fafc" />
+              <pattern id="rowStripe" x="0" y="0" width={metrics.pxPerDay * 7} height={rowHeight * 2} patternUnits="userSpaceOnUse">
+                <rect x="0" y="0" width={metrics.pxPerDay * 7} height={rowHeight} fill="#ffffff" />
+                <rect x="0" y={rowHeight} width={metrics.pxPerDay * 7} height={rowHeight} fill="#f8fafc" />
               </pattern>
             </defs>
             <rect x={0} y={0} width={metrics.width} height={bodyHeight} fill="url(#rowStripe)" />
@@ -62,6 +63,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                 key={r.task.id}
                 task={r.task}
                 rowIndex={r.index}
+                rowHeight={rowHeight}
                 metrics={metrics}
                 isSummary={r.hasChildren}
               />
@@ -81,6 +83,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                       succ={r.task}
                       predRowIndex={predIdx}
                       succRowIndex={succIdx}
+                      rowHeight={rowHeight}
                       type={dep.type}
                       metrics={metrics}
                     />

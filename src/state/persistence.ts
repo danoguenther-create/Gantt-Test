@@ -4,6 +4,29 @@ import { buildSampleProject } from './sampleData';
 const KEY_V1 = 'gantt-test:v1';
 const KEY_V2 = 'gantt-test:v2';
 const KEY_LAST_EXPORT = 'gantt-test:lastExport';
+const KEY_VIEW = 'gantt-test:view';
+
+export interface ViewPrefs {
+  columnWidths?: Record<string, number>;
+  wrap?: boolean;
+}
+
+export function loadViewPrefs(): ViewPrefs {
+  try {
+    const raw = localStorage.getItem(KEY_VIEW);
+    return raw ? (JSON.parse(raw) as ViewPrefs) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveViewPrefs(prefs: ViewPrefs): void {
+  try {
+    localStorage.setItem(KEY_VIEW, JSON.stringify(prefs));
+  } catch {
+    // ignore
+  }
+}
 
 export function getLastExportedAt(): number | null {
   try {

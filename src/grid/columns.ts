@@ -19,5 +19,19 @@ export const COLUMNS: ColumnDef[] = [
 export const ROW_NUMBER_WIDTH = 44;
 export const GRID_WIDTH = ROW_NUMBER_WIDTH + COLUMNS.reduce((acc, c) => acc + c.width, 0);
 export const ROW_HEIGHT = 28;
+export const WRAP_ROW_HEIGHT = 56;
 export const HEADER_HEIGHT = 36;
 export const GHOST_ROWS = 20;
+export const MIN_COLUMN_WIDTH = 60;
+
+export type ColumnWidths = Record<ColumnId, number>;
+
+export function defaultColumnWidths(): ColumnWidths {
+  const out = {} as ColumnWidths;
+  for (const c of COLUMNS) out[c.id] = c.width;
+  return out;
+}
+
+export function gridWidthFor(widths: ColumnWidths): number {
+  return ROW_NUMBER_WIDTH + COLUMNS.reduce((acc, c) => acc + (widths[c.id] ?? c.width), 0);
+}

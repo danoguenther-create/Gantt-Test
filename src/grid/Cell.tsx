@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Task, Status } from '../types';
 import { useDispatch } from '../state/store';
-import { parsePredecessors, formatPredecessors } from '../scheduling/predecessors';
 import type { ColumnId } from './columns';
+import { cellDisplayValue, commitCellValue } from './cellValue';
+import { DatePickerPopover } from './DatePickerPopover';
 
 export type NavDirection = 'left' | 'right' | 'up' | 'down';
 
@@ -16,6 +18,7 @@ interface Props {
   selected: boolean;
   active: boolean;
   autoEdit: boolean;
+  wrap: boolean;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
   onExtendSelection: (dir: 'up' | 'down') => void;
@@ -23,16 +26,6 @@ interface Props {
 }
 
 const STATUSES: Status[] = ['Not Started', 'In Progress', 'Complete'];
-
-function prettyDuration(days: number): string {
-  return `${days}d`;
-}
-
-function parseDuration(text: string): number | null {
-  const m = /^\s*(\d+)\s*d?\s*$/i.exec(text);
-  if (!m) return null;
-  return Number(m[1]);
-}
 
 function isPrintableKey(e: React.KeyboardEvent): boolean {
   return e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
@@ -48,6 +41,7 @@ export function Cell({
   selected,
   active,
   autoEdit,
+  wrap,
   onActivate,
   onNavigate,
   onExtendSelection,
@@ -56,8 +50,11 @@ export function Cell({
   const dispatch = useDispatch();
   const [editing, setEditing] = useState(false);
   const [initialEditValue, setInitialEditValue] = useState<string | null>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cellRef = useRef<HTMLDivElement | null>(null);
+
+  const isDate = column === 'start' || column === 'finish';
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -84,19 +81,7 @@ export function Cell({
   const commitText = (raw: string) => {
     setEditing(false);
     setInitialEditValue(null);
-    if (column === 'name' && raw !== task.name) dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { name: raw } });
-    else if (column === 'assignee' && raw !== (task.assignee ?? '')) dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { assignee: raw } });
-    else if (column === 'duration') {
-      const d = parseDuration(raw);
-      if (d !== null && d !== task.durationDays) dispatch({ type: 'UPDATE_DURATION', id: task.id, durationDays: d });
-    } else if (column === 'start' && raw && raw !== task.start) {
-      dispatch({ type: 'UPDATE_START', id: task.id, start: raw });
-    } else if (column === 'finish' && raw && raw !== task.finish) {
-      dispatch({ type: 'UPDATE_FINISH', id: task.id, finish: raw });
-    } else if (column === 'predecessors') {
-      const deps = parsePredecessors(raw);
-      dispatch({ type: 'UPDATE_PREDECESSORS', id: task.id, deps });
-    }
+    commitCellValue(dispatch, task, column, raw);
   };
 
   const cancelEdit = () => {
@@ -109,6 +94,12 @@ export function Cell({
     setInitialEditValue(withValue);
     setEditing(true);
   };
+
+  const openPicker = () => {
+    const rect = cellRef.current?.getBoundingClientRect() ?? null;
+    setPickerAnchor(rect);
+  };
+  const closePicker = () => setPickerAnchor(null);
 
   const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -127,6 +118,7 @@ export function Cell({
 
   const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!active || editing) return;
+    if (e.ctrlKey || e.metaKey) return; // let clipboard shortcuts bubble to the window handler
     if (e.key === 'Tab') {
       e.preventDefault();
       onNavigate(e.shiftKey ? 'left' : 'right');
@@ -157,7 +149,7 @@ export function Cell({
         commitText('');
       }
     } else if (isPrintableKey(e)) {
-      if (column === 'status' || column === 'start' || column === 'finish') return;
+      if (column === 'status') return;
       e.preventDefault();
       startEditing(e.key);
     }
@@ -167,20 +159,30 @@ export function Cell({
     width,
     minWidth: width,
     height: '100%',
-    padding: '0 8px',
+    padding: wrap ? '5px 8px' : '0 8px',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: wrap ? 'flex-start' : 'center',
     boxSizing: 'border-box',
     borderRight: '1px solid #e5e7eb',
     background: selected ? '#e0f2fe' : undefined,
     boxShadow: active ? 'inset 0 0 0 2px #2563eb' : undefined,
     cursor: 'cell',
     fontSize: 12,
+    lineHeight: 1.3,
     color: task.hasError ? '#b91c1c' : undefined,
     overflow: 'hidden',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
+    whiteSpace: wrap ? 'normal' : 'nowrap',
+    textOverflow: wrap ? 'clip' : 'ellipsis',
     outline: 'none',
+  };
+
+  const textSpanStyle: React.CSSProperties = {
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: wrap ? 'clip' : 'ellipsis',
+    whiteSpace: wrap ? 'normal' : 'nowrap',
+    overflowWrap: wrap ? 'anywhere' : 'normal',
+    wordBreak: wrap ? 'break-word' : 'normal',
   };
 
   const onClick = () => onActivate(colIdx);
@@ -206,12 +208,12 @@ export function Cell({
               e.stopPropagation();
               dispatch({ type: 'TOGGLE_COLLAPSE', id: task.id });
             }}
-            style={{ width: 14, cursor: 'pointer', userSelect: 'none', color: '#6b7280' }}
+            style={{ width: 14, flexShrink: 0, cursor: 'pointer', userSelect: 'none', color: '#6b7280' }}
           >
             {task.collapsed ? '▸' : '▾'}
           </span>
         ) : (
-          <span style={{ width: 14 }} />
+          <span style={{ width: 14, flexShrink: 0 }} />
         )}
         {editing ? (
           <input
@@ -222,9 +224,7 @@ export function Cell({
             style={{ flex: 1, border: 'none', outline: '1px solid #2563eb', padding: '2px 4px', fontSize: 12 }}
           />
         ) : (
-          <span style={{ flex: 1, fontWeight: hasChildren ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {task.name}
-          </span>
+          <span style={{ ...textSpanStyle, fontWeight: hasChildren ? 600 : 400 }}>{task.name}</span>
         )}
       </div>
     );
@@ -254,41 +254,62 @@ export function Cell({
     );
   }
 
-  const value = (() => {
-    switch (column) {
-      case 'assignee':
-        return task.assignee ?? '';
-      case 'start':
-        return task.start;
-      case 'finish':
-        return task.finish;
-      case 'duration':
-        return prettyDuration(task.durationDays);
-      case 'predecessors':
-        return formatPredecessors(task.predecessors);
-    }
-    return '';
-  })();
+  const value = cellDisplayValue(task, column);
 
   if (editing) {
-    const inputType = column === 'start' || column === 'finish' ? 'date' : 'text';
     return (
       <div style={baseStyle}>
         <input
           ref={inputRef}
-          type={inputType}
+          type="text"
           defaultValue={initialEditValue ?? value}
           onBlur={(e) => commitText(e.target.value)}
           onKeyDown={handleEditKeyDown}
+          placeholder={isDate ? 'JJJJ-MM-TT' : undefined}
           style={{ flex: 1, border: 'none', outline: '1px solid #2563eb', padding: '2px 4px', fontSize: 12 }}
         />
       </div>
     );
   }
 
+  if (isDate) {
+    return (
+      <div {...commonCellProps}>
+        <span style={textSpanStyle}>{value}</span>
+        <span
+          onMouseDown={(e) => {
+            // mousedown so the picker's outside-click listener doesn't immediately close it
+            e.stopPropagation();
+            e.preventDefault();
+            onActivate(colIdx);
+            openPicker();
+          }}
+          style={{ flexShrink: 0, cursor: 'pointer', color: '#6b7280', fontSize: 12, paddingLeft: 4 }}
+          title="Kalender öffnen"
+        >
+          📅
+        </span>
+        {pickerAnchor
+          ? createPortal(
+              <DatePickerPopover
+                value={value}
+                anchor={pickerAnchor}
+                onSelect={(iso) => {
+                  commitText(iso);
+                  closePicker();
+                }}
+                onClose={closePicker}
+              />,
+              document.body,
+            )
+          : null}
+      </div>
+    );
+  }
+
   return (
     <div {...commonCellProps}>
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+      <span style={textSpanStyle}>{value}</span>
     </div>
   );
 }

@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Grid, type ActiveCell } from './grid/Grid';
-import { COLUMNS } from './grid/columns';
+import {
+  COLUMNS,
+  MIN_COLUMN_WIDTH,
+  ROW_HEIGHT,
+  WRAP_ROW_HEIGHT,
+  defaultColumnWidths,
+  type ColumnId,
+  type ColumnWidths,
+} from './grid/columns';
 import type { NavDirection } from './grid/Cell';
+import { cellDisplayValue, commitCellValue } from './grid/cellValue';
 import { Gantt } from './gantt/Gantt';
 import { Toolbar } from './toolbar/Toolbar';
 import { ExportReminder } from './ExportReminder';
 import { ProjectProvider, useDispatch, useProject, useWorkspace } from './state/store';
+import { loadViewPrefs, saveViewPrefs } from './state/persistence';
 import { computeVisibleRows } from './state/visibleRows';
 
 function predictNextId(tasks: Record<string, unknown>): string {
@@ -25,11 +35,101 @@ function Workspace() {
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const dragSelecting = useRef(false);
 
+  const initialPrefs = useMemo(() => loadViewPrefs(), []);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => ({
+    ...defaultColumnWidths(),
+    ...(initialPrefs.columnWidths as Partial<ColumnWidths> | undefined),
+  }));
+  const [wrap, setWrap] = useState<boolean>(() => !!initialPrefs.wrap);
+  const rowHeight = wrap ? WRAP_ROW_HEIGHT : ROW_HEIGHT;
+
+  useEffect(() => {
+    saveViewPrefs({ columnWidths, wrap });
+  }, [columnWidths, wrap]);
+
+  const onColumnResize = useCallback((id: ColumnId, width: number) => {
+    setColumnWidths((prev) => ({ ...prev, [id]: Math.max(MIN_COLUMN_WIDTH, Math.round(width)) }));
+  }, []);
+
+  const clipboardRef = useRef<string>('');
+  const [copiedRange, setCopiedRange] = useState<{ colIdx: number; rowIds: string[] } | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement as HTMLElement | null)?.tagName;
+      const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+      if (e.key === 'Escape' && !inField) {
+        setCopiedRange(null);
+        return;
+      }
+      if (inField) return; // let native clipboard handle inline edits
+      if (!activeCell) return;
+      const isCopy = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c';
+      const isPaste = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v';
+      if (!isCopy && !isPaste) return;
+      const col = COLUMNS[activeCell.colIdx]?.id;
+      if (!col) return;
+
+      // rows in visible order that participate in the operation
+      const orderedSelected = rows.map((r) => r.task.id).filter((id) => selectedRowIds.has(id));
+      const rowIds = orderedSelected.length > 1 ? orderedSelected : [activeCell.rowId];
+
+      if (isCopy) {
+        e.preventDefault();
+        const values = rowIds.map((id) => {
+          const t = state.tasks[id];
+          return t ? cellDisplayValue(t, col) : '';
+        });
+        const text = values.join('\n');
+        clipboardRef.current = text;
+        navigator.clipboard?.writeText(text).catch(() => {});
+        setCopiedRange({ colIdx: activeCell.colIdx, rowIds });
+      } else {
+        e.preventDefault();
+        const applyPaste = (text: string) => {
+          const lines = (text ?? '').split(/\r?\n/);
+          if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+
+          // Excel-like: pasting a multi-line clipboard onto a single anchor fills downward
+          let targets = rowIds;
+          if (targets.length === 1 && lines.length > 1) {
+            const startIdx = rows.findIndex((r) => r.task.id === targets[0]);
+            if (startIdx >= 0) {
+              targets = [];
+              for (let k = 0; k < lines.length && startIdx + k < rows.length; k++) {
+                targets.push(rows[startIdx + k].task.id);
+              }
+            }
+          }
+
+          for (let i = 0; i < targets.length; i++) {
+            const target = state.tasks[targets[i]];
+            if (!target) continue;
+            const value = lines.length === 1 ? lines[0] : i < lines.length ? lines[i] : undefined;
+            if (value !== undefined) commitCellValue(dispatch, target, col, value);
+          }
+          setCopiedRange(null);
+        };
+        if (navigator.clipboard?.readText) {
+          navigator.clipboard
+            .readText()
+            .then((t) => applyPaste(t || clipboardRef.current))
+            .catch(() => applyPaste(clipboardRef.current));
+        } else {
+          applyPaste(clipboardRef.current);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeCell, selectedRowIds, rows, state.tasks, dispatch]);
+
   useEffect(() => {
     setActiveCell(null);
     setPendingEditAt(null);
     setSelectedRowIds(new Set());
     setAnchorId(null);
+    setCopiedRange(null);
   }, [workspace.currentProjectId]);
 
   useEffect(() => {
@@ -187,7 +287,12 @@ function Workspace() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
       <ExportReminder />
-      <Toolbar selectedId={activeCell?.rowId ?? null} selectedIds={[...selectedRowIds]} />
+      <Toolbar
+        selectedId={activeCell?.rowId ?? null}
+        selectedIds={rows.filter((r) => selectedRowIds.has(r.task.id)).map((r) => r.task.id)}
+        wrap={wrap}
+        onToggleWrap={() => setWrap((w) => !w)}
+      />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <Grid
           ref={gridScrollRef}
@@ -195,6 +300,11 @@ function Workspace() {
           activeCell={activeCell}
           pendingEditAt={pendingEditAt}
           selectedRowIds={selectedRowIds}
+          copiedRange={copiedRange}
+          columnWidths={columnWidths}
+          wrap={wrap}
+          rowHeight={rowHeight}
+          onColumnResize={onColumnResize}
           onActivate={activate}
           onNavigate={navigate}
           onExtendSelection={extendSelection}
@@ -203,7 +313,7 @@ function Workspace() {
           onEditStarted={clearPendingEdit}
           onScroll={onGridScroll}
         />
-        <Gantt ref={ganttScrollRef} state={state} rows={rows} onScroll={onGanttScroll} />
+        <Gantt ref={ganttScrollRef} state={state} rows={rows} rowHeight={rowHeight} onScroll={onGanttScroll} />
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import type { DepType, Task } from '../types';
-import { ROW_HEIGHT } from '../grid/columns';
 import { pxForDate, type TimelineMetrics } from './timeline';
 
 interface Props {
@@ -7,15 +6,16 @@ interface Props {
   succ: Task;
   predRowIndex: number;
   succRowIndex: number;
+  rowHeight: number;
   type: DepType;
   metrics: TimelineMetrics;
 }
 
 const BAR_HEIGHT = 16;
 
-export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, type, metrics }: Props) {
-  const predYMid = predRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-  const succYMid = succRowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, rowHeight, type, metrics }: Props) {
+  const predYMid = predRowIndex * rowHeight + rowHeight / 2;
+  const succYMid = succRowIndex * rowHeight + rowHeight / 2;
   const predStartX = pxForDate(metrics, pred.start);
   const predFinishX = pxForDate(metrics, pred.finish) + metrics.pxPerDay;
   const succStartX = pxForDate(metrics, succ.start);

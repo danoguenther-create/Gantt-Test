@@ -3,7 +3,15 @@ import type { VisibleRow } from '../types';
 import { Row } from './Row';
 import { Cell as _Cell } from './Cell';
 import type { NavDirection } from './Cell';
-import { COLUMNS, GRID_WIDTH, GHOST_ROWS, HEADER_HEIGHT, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './columns';
+import {
+  COLUMNS,
+  GHOST_ROWS,
+  HEADER_HEIGHT,
+  ROW_NUMBER_WIDTH,
+  gridWidthFor,
+  type ColumnId,
+  type ColumnWidths,
+} from './columns';
 import { useDispatch } from '../state/store';
 
 void _Cell;
@@ -18,6 +26,11 @@ interface Props {
   activeCell: ActiveCell | null;
   pendingEditAt: ActiveCell | null;
   selectedRowIds: Set<string>;
+  copiedRange: { colIdx: number; rowIds: string[] } | null;
+  columnWidths: ColumnWidths;
+  wrap: boolean;
+  rowHeight: number;
+  onColumnResize: (id: ColumnId, width: number) => void;
   onActivate: (rowId: string, colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
   onExtendSelection: (dir: 'up' | 'down') => void;
@@ -33,6 +46,11 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
     activeCell,
     pendingEditAt,
     selectedRowIds,
+    copiedRange,
+    columnWidths,
+    wrap,
+    rowHeight,
+    onColumnResize,
     onActivate,
     onNavigate,
     onExtendSelection,
@@ -48,9 +66,47 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
 
+  const gridWidth = gridWidthFor(columnWidths);
+
+  const columnLeft = (colIdx: number) =>
+    ROW_NUMBER_WIDTH + COLUMNS.slice(0, colIdx).reduce((a, c) => a + (columnWidths[c.id] ?? c.width), 0);
+
+  const rangeRect = (colIdx: number, rowIds: string[]) => {
+    const col = COLUMNS[colIdx];
+    if (!col) return null;
+    const indices = rowIds
+      .map((id) => rows.findIndex((r) => r.task.id === id))
+      .filter((i) => i >= 0);
+    if (indices.length === 0) return null;
+    const min = Math.min(...indices);
+    const max = Math.max(...indices);
+    return {
+      left: columnLeft(colIdx),
+      top: min * rowHeight,
+      width: columnWidths[col.id] ?? col.width,
+      height: (max - min + 1) * rowHeight,
+    };
+  };
+
+  const selectionRect = activeCell && selectedRowIds.size > 1 ? rangeRect(activeCell.colIdx, [...selectedRowIds]) : null;
+  const copiedRect = copiedRange ? rangeRect(copiedRange.colIdx, copiedRange.rowIds) : null;
+
   const resetDragState = () => {
     setDraggingId(null);
     setDropTarget(null);
+  };
+
+  const startColumnResize = (id: ColumnId, startWidth: number) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const onMove = (ev: PointerEvent) => onColumnResize(id, startWidth + (ev.clientX - startX));
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   };
 
   return (
@@ -59,7 +115,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         style={{
           display: 'flex',
           height: HEADER_HEIGHT,
-          width: GRID_WIDTH,
+          width: gridWidth,
           background: '#f8fafc',
           borderBottom: '1px solid #cbd5e1',
           fontSize: 12,
@@ -82,28 +138,49 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         >
           #
         </div>
-        {COLUMNS.map((c) => (
-          <div
-            key={c.id}
-            style={{
-              width: c.width,
-              padding: '0 8px',
-              display: 'flex',
-              alignItems: 'center',
-              borderRight: '1px solid #cbd5e1',
-              boxSizing: 'border-box',
-            }}
-          >
-            {c.header}
-          </div>
-        ))}
+        {COLUMNS.map((c) => {
+          const w = columnWidths[c.id] ?? c.width;
+          return (
+            <div
+              key={c.id}
+              style={{
+                position: 'relative',
+                width: w,
+                padding: '0 8px',
+                display: 'flex',
+                alignItems: 'center',
+                borderRight: '1px solid #cbd5e1',
+                boxSizing: 'border-box',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.header}</span>
+              <div
+                onPointerDown={startColumnResize(c.id, w)}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onColumnResize(c.id, c.width);
+                }}
+                title="Spaltenbreite ziehen · Doppelklick: zurücksetzen"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: -3,
+                  width: 6,
+                  height: '100%',
+                  cursor: 'col-resize',
+                  zIndex: 3,
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
       <div
         ref={ref}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: GRID_WIDTH, userSelect: 'none' }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: gridWidth, userSelect: 'none' }}
         onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
       >
-        <div style={{ position: 'relative', height: totalRows * ROW_HEIGHT, width: GRID_WIDTH }}>
+        <div style={{ position: 'relative', height: totalRows * rowHeight, width: gridWidth }}>
           {rows.map((row) => {
             const isActiveRow = activeCell?.rowId === row.task.id;
             const isSelectedRow = selectedRowIds.has(row.task.id);
@@ -142,9 +219,9 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                 }}
                 style={{
                   position: 'absolute',
-                  top: row.index * ROW_HEIGHT,
+                  top: row.index * rowHeight,
                   left: 0,
-                  width: GRID_WIDTH,
+                  width: gridWidth,
                   opacity: isDragging ? 0.45 : 1,
                   zIndex: isDragging || dropPosition ? 1 : 0,
                 }}
@@ -156,6 +233,9 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   pendingEditColIdx={pendingColIdx}
                   dropPosition={dropPosition}
                   draggableHandle={true}
+                  columnWidths={columnWidths}
+                  wrap={wrap}
+                  rowHeight={rowHeight}
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', row.task.id);
@@ -178,10 +258,10 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                 onClick={() => dispatch({ type: 'ADD_TASK_AT_END' })}
                 style={{
                   position: 'absolute',
-                  top: idx * ROW_HEIGHT,
+                  top: idx * rowHeight,
                   left: 0,
-                  width: GRID_WIDTH,
-                  height: ROW_HEIGHT,
+                  width: gridWidth,
+                  height: rowHeight,
                   display: 'flex',
                   borderBottom: '1px solid #eef2f7',
                   background: idx % 2 === 0 ? '#ffffff' : '#fafbfc',
@@ -197,20 +277,53 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                     boxSizing: 'border-box',
                   }}
                 />
-                {COLUMNS.map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      width: c.width,
-                      minWidth: c.width,
-                      borderRight: '1px solid #eef2f7',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                ))}
+                {COLUMNS.map((c) => {
+                  const w = columnWidths[c.id] ?? c.width;
+                  return (
+                    <div
+                      key={c.id}
+                      style={{
+                        width: w,
+                        minWidth: w,
+                        borderRight: '1px solid #eef2f7',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  );
+                })}
               </div>
             );
           })}
+          {selectionRect ? (
+            <div
+              style={{
+                position: 'absolute',
+                left: selectionRect.left,
+                top: selectionRect.top,
+                width: selectionRect.width,
+                height: selectionRect.height,
+                border: '2px solid #2563eb',
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+                zIndex: 4,
+              }}
+            />
+          ) : null}
+          {copiedRect ? (
+            <div
+              className="copy-ants"
+              style={{
+                position: 'absolute',
+                left: copiedRect.left,
+                top: copiedRect.top,
+                width: copiedRect.width,
+                height: copiedRect.height,
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+                zIndex: 5,
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>

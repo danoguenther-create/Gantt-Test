@@ -62,8 +62,8 @@ interface BuiltSvg {
   height: number;
 }
 
-function buildExportSvg(state: ProjectState, projectName: string): BuiltSvg {
-  const expanded = expandAll(state);
+function buildExportSvg(state: ProjectState, projectName: string, expand: boolean): BuiltSvg {
+  const expanded = expand ? expandAll(state) : state;
   const rows = computeVisibleRows(expanded);
   const metrics = computeTimeline(expanded);
   const ticks = computeTicks(metrics, expanded.zoom);
@@ -165,6 +165,12 @@ function buildExportSvg(state: ProjectState, projectName: string): BuiltSvg {
       const cy = barY + barH / 2;
       const s = barH / 2 + 1;
       parts.push(`<polygon points="${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}" fill="#0f172a"/>`);
+      const label = svgEscape(truncateForWidth(task.name, Math.max(0, ganttWidth - (cx + s - ganttHeaderX) - 8)));
+      if (label) {
+        parts.push(
+          `<text x="${cx + s + 4}" y="${barY + barH - 4}" font-size="10" font-weight="600" fill="#0f172a">${label}</text>`,
+        );
+      }
     } else if (row.hasChildren) {
       const midY = barY + barH / 2;
       parts.push(`<rect x="${barX}" y="${midY - 2}" width="${barW}" height="4" fill="#334155"/>`);
@@ -172,6 +178,12 @@ function buildExportSvg(state: ProjectState, projectName: string): BuiltSvg {
       const capH = 4;
       parts.push(`<polygon points="${barX},${midY - 2} ${barX + capW},${midY - 2} ${barX},${midY - 2 + capH}" fill="#334155"/>`);
       parts.push(`<polygon points="${barXEnd},${midY - 2} ${barXEnd - capW},${midY - 2} ${barXEnd},${midY - 2 + capH}" fill="#334155"/>`);
+      const label = svgEscape(truncateForWidth(task.name, Math.max(0, ganttWidth - (barXEnd - ganttHeaderX) - 8)));
+      if (label) {
+        parts.push(
+          `<text x="${barXEnd + 4}" y="${barY + barH - 4}" font-size="10" font-weight="600" fill="#0f172a">${label}</text>`,
+        );
+      }
     } else {
       const fill = task.hasError ? '#fecaca' : '#60a5fa';
       const stroke = task.hasError ? '#b91c1c' : '#2563eb';
@@ -246,8 +258,18 @@ async function svgToPng(svgString: string, width: number, height: number, scale:
   }
 }
 
-export async function exportProjectPdf(state: ProjectState, projectName: string, filename: string): Promise<void> {
-  const { svg, width, height } = buildExportSvg(state, projectName);
+export interface PdfExportOptions {
+  /** When true, keep the current view: collapsed parent rows stay collapsed. Default expands all rows. */
+  respectCollapsed?: boolean;
+}
+
+export async function exportProjectPdf(
+  state: ProjectState,
+  projectName: string,
+  filename: string,
+  options: PdfExportOptions = {},
+): Promise<void> {
+  const { svg, width, height } = buildExportSvg(state, projectName, !options.respectCollapsed);
 
   let pageW = width * PX_TO_MM;
   let pageH = height * PX_TO_MM;

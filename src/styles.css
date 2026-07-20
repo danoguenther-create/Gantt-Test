@@ -29,3 +29,20 @@ button {
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
+
+/* Excel-style "marching ants" outline around the copied cell range */
+.copy-ants {
+  background-image:
+    linear-gradient(90deg, #15803d 50%, transparent 0),
+    linear-gradient(90deg, #15803d 50%, transparent 0),
+    linear-gradient(0deg, #15803d 50%, transparent 0),
+    linear-gradient(0deg, #15803d 50%, transparent 0);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 8px 2px, 8px 2px, 2px 8px, 2px 8px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: copy-ants-move 0.55s linear infinite;
+}
+
+@keyframes copy-ants-move {
+  to { background-position: 8px 0, -8px 100%, 0 -8px, 100% 8px; }
+}

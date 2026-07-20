@@ -1,7 +1,7 @@
 import type { DragEvent } from 'react';
 import type { VisibleRow } from '../types';
 import { Cell, type NavDirection } from './Cell';
-import { COLUMNS, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './columns';
+import { COLUMNS, ROW_NUMBER_WIDTH, type ColumnWidths } from './columns';
 
 interface Props {
   row: VisibleRow;
@@ -10,6 +10,9 @@ interface Props {
   pendingEditColIdx: number | null;
   dropPosition: 'before' | 'after' | null;
   draggableHandle: boolean;
+  columnWidths: ColumnWidths;
+  wrap: boolean;
+  rowHeight: number;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
   onActivate: (colIdx: number) => void;
@@ -25,6 +28,9 @@ export function Row({
   pendingEditColIdx,
   dropPosition,
   draggableHandle,
+  columnWidths,
+  wrap,
+  rowHeight,
   onDragStart,
   onDragEnd,
   onActivate,
@@ -37,7 +43,7 @@ export function Row({
       style={{
         position: 'relative',
         display: 'flex',
-        height: ROW_HEIGHT,
+        height: rowHeight,
         borderBottom: '1px solid #e5e7eb',
       }}
     >
@@ -69,8 +75,9 @@ export function Row({
           height: '100%',
           padding: '0 6px',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: wrap ? 'flex-start' : 'center',
           justifyContent: 'flex-end',
+          paddingTop: wrap ? 5 : 0,
           boxSizing: 'border-box',
           borderRight: '1px solid #e5e7eb',
           background: selected ? '#bae6fd' : '#f8fafc',
@@ -89,12 +96,13 @@ export function Row({
           task={row.task}
           column={c.id}
           colIdx={idx}
-          width={c.width}
+          width={columnWidths[c.id] ?? c.width}
           depth={row.depth}
           hasChildren={row.hasChildren}
           selected={selected}
           active={activeColIdx === idx}
           autoEdit={pendingEditColIdx === idx}
+          wrap={wrap}
           onActivate={onActivate}
           onNavigate={onNavigate}
           onExtendSelection={onExtendSelection}

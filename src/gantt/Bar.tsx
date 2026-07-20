@@ -1,23 +1,23 @@
 import { useRef } from 'react';
 import type { Task } from '../types';
 import { useDispatch } from '../state/store';
-import { ROW_HEIGHT } from '../grid/columns';
 import { pxForDate, type TimelineMetrics } from './timeline';
 
 interface Props {
   task: Task;
   rowIndex: number;
+  rowHeight: number;
   metrics: TimelineMetrics;
   isSummary: boolean;
 }
 
 const BAR_HEIGHT = 16;
 
-export function Bar({ task, rowIndex, metrics, isSummary }: Props) {
+export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
   const dispatch = useDispatch();
   const dragState = useRef<{ kind: 'move' | 'resize-start' | 'resize-end'; startX: number; committedDays: number } | null>(null);
 
-  const y = rowIndex * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+  const y = rowIndex * rowHeight + (rowHeight - BAR_HEIGHT) / 2;
   const xStart = pxForDate(metrics, task.start);
   const xFinish = pxForDate(metrics, task.finish) + metrics.pxPerDay;
   const width = Math.max(xFinish - xStart, 2);
@@ -69,6 +69,16 @@ export function Bar({ task, rowIndex, metrics, isSummary }: Props) {
           onPointerUp={onPointerUp}
           style={{ cursor: 'grab' }}
         />
+        <text
+          x={cx + s + 4}
+          y={y + BAR_HEIGHT - 4}
+          fontSize={11}
+          fontWeight={600}
+          fill="#0f172a"
+          pointerEvents="none"
+        >
+          {task.name}
+        </text>
         <title>{task.name}</title>
       </g>
     );
