@@ -258,6 +258,18 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
         );
       }
     }
+
+    // Baseline-end marker on top of the live bar, so an extended (or shortened) task is visible.
+    if (baseline) {
+      const snap = baseline.tasks[task.id];
+      if (snap && snap.durationDays !== 0) {
+        const baseEndX = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
+        if (baseEndX !== barXEnd) {
+          const mTop = barY - 2;
+          parts.push(`<line x1="${baseEndX}" y1="${mTop}" x2="${baseEndX}" y2="${mTop + barH + 4}" stroke="#475569" stroke-width="2"/>`);
+        }
+      }
+    }
   }
 
   const rowIndexById = new Map<string, number>();

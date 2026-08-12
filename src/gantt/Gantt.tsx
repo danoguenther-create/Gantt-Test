@@ -5,6 +5,7 @@ import { GhostBar } from './GhostBar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
 import { computeTicks, computeTimeline, computeWeekBands, pxForDate } from './timeline';
+import { BAR_HEIGHT } from './constants';
 import { GHOST_ROWS } from '../grid/columns';
 import { activeBaseline } from '../state/baselineDiff';
 
@@ -87,6 +88,30 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                 isSummary={r.hasChildren}
               />
             ))}
+            {baseline
+              ? rows.flatMap((r) => {
+                  const snap = baseline.tasks[r.task.id];
+                  if (!snap || snap.durationDays === 0) return [];
+                  const baseEndX = pxForDate(metrics, snap.finish) + metrics.pxPerDay;
+                  const liveEndX = pxForDate(metrics, r.task.finish) + metrics.pxPerDay;
+                  if (baseEndX === liveEndX) return []; // no change → no marker
+                  const yTop = r.index * rowHeight + (rowHeight - BAR_HEIGHT) / 2 - 2;
+                  return [
+                    <line
+                      key={`bend-${r.task.id}`}
+                      x1={baseEndX}
+                      y1={yTop}
+                      x2={baseEndX}
+                      y2={yTop + BAR_HEIGHT + 4}
+                      stroke="#475569"
+                      strokeWidth={2}
+                      pointerEvents="none"
+                    >
+                      <title>Baseline-Ende: {snap.name}</title>
+                    </line>,
+                  ];
+                })
+              : null}
             {rows.flatMap((r) => {
               const succIdx = visibleIndexById.get(r.task.id);
               if (succIdx === undefined) return [];
