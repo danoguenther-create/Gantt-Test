@@ -217,8 +217,8 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
       }
     } else {
       const inProgress = task.status === 'In Progress';
-      const fill = task.hasError ? '#fecaca' : inProgress ? '#bbf7d0' : '#60a5fa';
-      const stroke = task.hasError ? '#b91c1c' : inProgress ? '#22c55e' : '#2563eb';
+      const fill = task.hasError ? '#fecaca' : inProgress ? '#fde68a' : '#60a5fa';
+      const stroke = task.hasError ? '#b91c1c' : inProgress ? '#d97706' : '#2563eb';
       parts.push(
         `<rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="3" ry="3" fill="${fill}" stroke="${stroke}"/>`,
       );

@@ -22,8 +22,8 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
   const width = Math.max(xFinish - xStart, 2);
 
   const inProgress = task.status === 'In Progress';
-  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : inProgress ? '#bbf7d0' : '#60a5fa';
-  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : inProgress ? '#22c55e' : '#2563eb';
+  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : inProgress ? '#fde68a' : '#60a5fa';
+  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : inProgress ? '#d97706' : '#2563eb';
 
   const onPointerDown = (kind: 'move' | 'resize-start' | 'resize-end') => (e: React.PointerEvent<SVGElement>) => {
     if (isSummary) return;
