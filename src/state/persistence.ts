@@ -2,13 +2,16 @@ import type { NamedProject, ProjectState, Workspace } from '../types';
 import { buildSampleProject } from './sampleData';
 
 const KEY_V1 = 'gantt-test:v1';
-const KEY_V2 = 'gantt-test:v2';
+// v3: Default-Plan auf A4 Printing (Stand 2026-07-20) umgestellt — alte v2-Stände werden verworfen,
+// damit der neue Plan frisch geladen wird.
+const KEY_V2 = 'gantt-test:v3';
 const KEY_LAST_EXPORT = 'gantt-test:lastExport';
 const KEY_VIEW = 'gantt-test:view';
 
 export interface ViewPrefs {
   columnWidths?: Record<string, number>;
   wrap?: boolean;
+  showDependencies?: boolean;
 }
 
 export function loadViewPrefs(): ViewPrefs {

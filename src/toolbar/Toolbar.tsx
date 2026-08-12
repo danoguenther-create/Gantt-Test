@@ -10,11 +10,13 @@ interface Props {
   selectedIds: string[];
   wrap: boolean;
   onToggleWrap: () => void;
+  showDependencies: boolean;
+  onToggleDependencies: () => void;
 }
 
 const ZOOMS: ZoomLevel[] = ['day', 'week', 'month'];
 
-export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap }: Props) {
+export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDependencies, onToggleDependencies }: Props) {
   const state = useProject();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
@@ -268,6 +270,13 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap }: Props) 
         title="Zeilenumbruch in Zellen an/aus (erhöht die Zeilenhöhe)"
       >
         Wrap
+      </button>
+      <button
+        style={{ ...btn, background: showDependencies ? '#2563eb' : '#fff', color: showDependencies ? '#fff' : '#0f172a' }}
+        onClick={onToggleDependencies}
+        title="Abhängigkeitspfeile im Gantt ein-/ausblenden"
+      >
+        Abhängigkeiten
       </button>
 
       <span style={{ width: 8 }} />

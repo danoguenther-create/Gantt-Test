@@ -12,10 +12,11 @@ interface Props {
   state: ProjectState;
   rows: VisibleRow[];
   rowHeight: number;
+  showDependencies: boolean;
   onScroll: (top: number) => void;
 }
 
-export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, rowHeight, onScroll }, ref) {
+export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, rowHeight, showDependencies, onScroll }, ref) {
   const metrics = useMemo(() => computeTimeline(state), [state]);
   const ticks = useMemo(() => computeTicks(metrics, state.zoom), [metrics, state.zoom]);
   const weekBands = useMemo(() => computeWeekBands(metrics), [metrics]);
@@ -89,7 +90,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                   ];
                 })
               : null}
-            {rows.flatMap((r) => {
+            {showDependencies ? rows.flatMap((r) => {
               const succIdx = visibleIndexById.get(r.task.id);
               if (succIdx === undefined) return [];
               return r.task.predecessors
@@ -111,7 +112,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                   );
                 })
                 .filter(Boolean) as JSX.Element[];
-            })}
+            }) : null}
           </svg>
         </div>
       </div>

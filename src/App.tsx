@@ -45,11 +45,12 @@ function Workspace() {
     ...(initialPrefs.columnWidths as Partial<ColumnWidths> | undefined),
   }));
   const [wrap, setWrap] = useState<boolean>(() => !!initialPrefs.wrap);
+  const [showDependencies, setShowDependencies] = useState<boolean>(() => initialPrefs.showDependencies !== false);
   const rowHeight = wrap ? WRAP_ROW_HEIGHT : ROW_HEIGHT;
 
   useEffect(() => {
-    saveViewPrefs({ columnWidths, wrap });
-  }, [columnWidths, wrap]);
+    saveViewPrefs({ columnWidths, wrap, showDependencies });
+  }, [columnWidths, wrap, showDependencies]);
 
   const onColumnResize = useCallback((id: ColumnId, width: number) => {
     setColumnWidths((prev) => ({ ...prev, [id]: Math.max(MIN_COLUMN_WIDTH, Math.round(width)) }));
@@ -296,6 +297,8 @@ function Workspace() {
         selectedIds={rows.filter((r) => selectedRowIds.has(r.task.id)).map((r) => r.task.id)}
         wrap={wrap}
         onToggleWrap={() => setWrap((w) => !w)}
+        showDependencies={showDependencies}
+        onToggleDependencies={() => setShowDependencies((v) => !v)}
       />
       {baseline ? <BaselineImpact baseline={baseline} diff={diff} state={state} /> : null}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
@@ -320,7 +323,7 @@ function Workspace() {
           onEditStarted={clearPendingEdit}
           onScroll={onGridScroll}
         />
-        <Gantt ref={ganttScrollRef} state={state} rows={rows} rowHeight={rowHeight} onScroll={onGanttScroll} />
+        <Gantt ref={ganttScrollRef} state={state} rows={rows} rowHeight={rowHeight} showDependencies={showDependencies} onScroll={onGanttScroll} />
       </div>
     </div>
   );
