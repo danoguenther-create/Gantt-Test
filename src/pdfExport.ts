@@ -188,31 +188,25 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
     if (baseline) {
       const snap = baseline.tasks[task.id];
       if (snap) {
+        // Grey ghost of the baseline position — same size/shape as the live bar, colour only.
         const gBarY = y + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+        const gx = ganttHeaderX + pxForDate(metrics, snap.start);
+        const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
+        const gw = Math.max(gxEnd - gx, 2);
         if (snap.durationDays === 0) {
-          const gcx = ganttHeaderX + pxForDate(metrics, snap.start) + metrics.pxPerDay / 2;
+          const gcx = gx + metrics.pxPerDay / 2;
           const gcy = gBarY + BAR_HEIGHT / 2;
           const gs = BAR_HEIGHT / 2 + 1;
-          const liveCx = ganttHeaderX + pxForDate(metrics, task.start) + metrics.pxPerDay / 2;
-          if (liveCx !== gcx) {
-            parts.push(`<line x1="${gcx}" y1="${gcy}" x2="${liveCx}" y2="${gcy}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`);
-          }
-          parts.push(
-            `<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3 2"/>`,
-          );
+          parts.push(`<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="#94a3b8"/>`);
+        } else if (row.hasChildren) {
+          const midY = gBarY + BAR_HEIGHT / 2;
+          const capW = 6;
+          const capH = 4;
+          parts.push(`<rect x="${gx}" y="${midY - 2}" width="${gw}" height="4" fill="#94a3b8"/>`);
+          parts.push(`<polygon points="${gx},${midY - 2} ${gx + capW},${midY - 2} ${gx},${midY - 2 + capH}" fill="#94a3b8"/>`);
+          parts.push(`<polygon points="${gxEnd},${midY - 2} ${gxEnd - capW},${midY - 2} ${gxEnd},${midY - 2 + capH}" fill="#94a3b8"/>`);
         } else {
-          const gx = ganttHeaderX + pxForDate(metrics, snap.start);
-          const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
-          const gw = Math.max(gxEnd - gx, 2);
-          const gy = gBarY + BAR_HEIGHT - 1;
-          const gcy = gy + 2.5;
-          const liveEnd = ganttHeaderX + pxForDate(metrics, task.finish) + metrics.pxPerDay;
-          parts.push(
-            `<rect x="${gx}" y="${gy}" width="${gw}" height="5" rx="1.5" ry="1.5" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`,
-          );
-          if (liveEnd !== gxEnd) {
-            parts.push(`<line x1="${gxEnd}" y1="${gcy}" x2="${liveEnd}" y2="${gcy}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`);
-          }
+          parts.push(`<rect x="${gx}" y="${gBarY}" width="${gw}" height="${BAR_HEIGHT}" rx="3" ry="3" fill="#cbd5e1" stroke="#94a3b8"/>`);
         }
       }
     }

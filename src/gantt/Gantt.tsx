@@ -69,10 +69,10 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                     <GhostBar
                       key={`ghost-${r.task.id}`}
                       snapshot={snap}
-                      task={r.task}
                       rowIndex={r.index}
                       rowHeight={rowHeight}
                       metrics={metrics}
+                      isSummary={r.hasChildren}
                     />,
                   ];
                 })
