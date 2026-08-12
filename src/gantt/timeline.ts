@@ -1,5 +1,6 @@
 import type { ProjectState, ZoomLevel } from '../types';
 import { diffCalendarDays, parseISO, toISO } from '../scheduling/workingDays';
+import { activeBaseline } from '../state/baselineDiff';
 import { ZOOM_CONFIG } from './zoom';
 
 export interface TimelineMetrics {
@@ -12,8 +13,19 @@ export interface TimelineMetrics {
 
 export function computeTimeline(state: ProjectState): TimelineMetrics {
   const tasks = Object.values(state.tasks);
-  const starts = tasks.map((t) => t.start).sort();
-  const finishes = tasks.map((t) => t.finish).sort();
+  const starts = tasks.map((t) => t.start);
+  const finishes = tasks.map((t) => t.finish);
+  // When comparing against a baseline, widen the window so ghost bars whose baseline
+  // extent falls outside the live plan's range still render inside the chart.
+  const baseline = activeBaseline(state);
+  if (baseline) {
+    for (const snap of Object.values(baseline.tasks)) {
+      starts.push(snap.start);
+      finishes.push(snap.finish);
+    }
+  }
+  starts.sort();
+  finishes.sort();
   const minStart = starts[0] ?? '2026-01-01';
   const maxFinish = finishes[finishes.length - 1] ?? minStart;
 

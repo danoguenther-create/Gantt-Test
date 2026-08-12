@@ -21,10 +21,17 @@ function fmtDate(iso: string): string {
 // Compact banner summarising the plan's drift against the selected baseline: milestone slips,
 // change counts and any tasks that were removed since the baseline was taken.
 export function BaselineImpact({ baseline, diff, state }: Props) {
+  // Summary/parent rows are derived rollups — their dates shift whenever a child does, so
+  // counting them would double-count. Only count real (leaf) tasks in the change totals.
+  const parentIds = new Set<string>();
+  for (const t of Object.values(state.tasks)) {
+    if (t.parentId) parentIds.add(t.parentId);
+  }
   let shifted = 0;
   let renamed = 0;
   let added = 0;
-  for (const d of diff.byId.values()) {
+  for (const [id, d] of diff.byId.entries()) {
+    if (parentIds.has(id)) continue;
     if (d.kind === 'shifted') shifted++;
     else if (d.kind === 'renamed') renamed++;
     else if (d.kind === 'new') added++;
@@ -34,9 +41,9 @@ export function BaselineImpact({ baseline, diff, state }: Props) {
   // Milestone slips: current milestones (durationDays 0) that existed in the baseline and moved.
   const milestoneSlips = Object.values(state.tasks)
     .filter((t) => t.durationDays === 0)
-    .map((t) => ({ name: t.name, d: diff.byId.get(t.id) }))
+    .map((t) => ({ id: t.id, name: t.name, d: diff.byId.get(t.id) }))
     .filter((m) => m.d && m.d.kind !== 'new' && m.d.finishDeltaWorkingDays !== 0)
-    .map((m) => ({ name: m.name, delta: m.d!.finishDeltaWorkingDays }))
+    .map((m) => ({ id: m.id, name: m.name, delta: m.d!.finishDeltaWorkingDays }))
     .sort((a, b) => b.delta - a.delta);
 
   const chip: React.CSSProperties = {
@@ -72,7 +79,7 @@ export function BaselineImpact({ baseline, diff, state }: Props) {
       {milestoneSlips.length > 0 ? (
         milestoneSlips.map((m) => (
           <span
-            key={m.name}
+            key={m.id}
             style={{
               ...chip,
               background: m.delta > 0 ? '#fee2e2' : '#dcfce7',
