@@ -216,16 +216,12 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
         );
       }
     } else {
-      const fill = task.hasError ? '#fecaca' : '#60a5fa';
-      const stroke = task.hasError ? '#b91c1c' : '#2563eb';
+      const inProgress = task.status === 'In Progress';
+      const fill = task.hasError ? '#fecaca' : inProgress ? '#bbf7d0' : '#60a5fa';
+      const stroke = task.hasError ? '#b91c1c' : inProgress ? '#22c55e' : '#2563eb';
       parts.push(
         `<rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="3" ry="3" fill="${fill}" stroke="${stroke}"/>`,
       );
-      if (task.status === 'In Progress') {
-        parts.push(
-          `<rect x="${barX}" y="${barY}" width="${barW * 0.5}" height="${barH}" rx="3" ry="3" fill="#1d4ed8" opacity="0.35"/>`,
-        );
-      }
       const label = svgEscape(truncateForWidth(task.name, Math.max(0, ganttWidth - (barX - ganttHeaderX) - barW - 12)));
       if (label) {
         parts.push(

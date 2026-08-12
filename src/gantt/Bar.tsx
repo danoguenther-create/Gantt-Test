@@ -21,8 +21,9 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
   const xFinish = pxForDate(metrics, task.finish) + metrics.pxPerDay;
   const width = Math.max(xFinish - xStart, 2);
 
-  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : '#60a5fa';
-  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : '#2563eb';
+  const inProgress = task.status === 'In Progress';
+  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : inProgress ? '#bbf7d0' : '#60a5fa';
+  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : inProgress ? '#22c55e' : '#2563eb';
 
   const onPointerDown = (kind: 'move' | 'resize-start' | 'resize-end') => (e: React.PointerEvent<SVGElement>) => {
     if (isSummary) return;
@@ -144,9 +145,6 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
       />
-      {task.status === 'In Progress' ? (
-        <rect x={xStart} y={y} width={width * 0.5} height={BAR_HEIGHT} rx={3} ry={3} fill="#1d4ed8" opacity={0.35} pointerEvents="none" />
-      ) : null}
       <text
         x={xFinish + 4}
         y={y + BAR_HEIGHT - 4}
