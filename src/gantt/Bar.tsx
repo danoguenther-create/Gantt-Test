@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { Task } from '../types';
 import { useDispatch } from '../state/store';
 import { pxForDate, type TimelineMetrics } from './timeline';
+import { BAR_HEIGHT } from './constants';
 
 interface Props {
   task: Task;
@@ -10,8 +11,6 @@ interface Props {
   metrics: TimelineMetrics;
   isSummary: boolean;
 }
-
-const BAR_HEIGHT = 16;
 
 export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
   const dispatch = useDispatch();

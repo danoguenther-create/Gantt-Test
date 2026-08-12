@@ -1,10 +1,12 @@
 import { forwardRef, useState } from 'react';
-import type { VisibleRow } from '../types';
+import type { TaskId, VisibleRow } from '../types';
+import type { TaskDiff } from '../state/baselineDiff';
 import { Row } from './Row';
 import { Cell as _Cell } from './Cell';
 import type { NavDirection } from './Cell';
 import {
   COLUMNS,
+  DELTA_COLUMN_WIDTH,
   GHOST_ROWS,
   HEADER_HEIGHT,
   ROW_NUMBER_WIDTH,
@@ -30,6 +32,8 @@ interface Props {
   columnWidths: ColumnWidths;
   wrap: boolean;
   rowHeight: number;
+  showDelta: boolean;
+  diffById: Map<TaskId, TaskDiff> | null;
   onColumnResize: (id: ColumnId, width: number) => void;
   onActivate: (rowId: string, colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
@@ -50,6 +54,8 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
     columnWidths,
     wrap,
     rowHeight,
+    showDelta,
+    diffById,
     onColumnResize,
     onActivate,
     onNavigate,
@@ -66,7 +72,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
 
-  const gridWidth = gridWidthFor(columnWidths);
+  const gridWidth = gridWidthFor(columnWidths) + (showDelta ? DELTA_COLUMN_WIDTH : 0);
 
   const columnLeft = (colIdx: number) =>
     ROW_NUMBER_WIDTH + COLUMNS.slice(0, colIdx).reduce((a, c) => a + (columnWidths[c.id] ?? c.width), 0);
@@ -174,6 +180,23 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
             </div>
           );
         })}
+        {showDelta ? (
+          <div
+            title="Δ Endtermin gegenüber Baseline (Arbeitstage)"
+            style={{
+              width: DELTA_COLUMN_WIDTH,
+              padding: '0 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              borderRight: '1px solid #cbd5e1',
+              boxSizing: 'border-box',
+              color: '#0f172a',
+            }}
+          >
+            Δ Baseline
+          </div>
+        ) : null}
       </div>
       <div
         ref={ref}
@@ -236,6 +259,8 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   columnWidths={columnWidths}
                   wrap={wrap}
                   rowHeight={rowHeight}
+                  showDelta={showDelta}
+                  rowDiff={diffById?.get(row.task.id)}
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', row.task.id);
@@ -291,6 +316,16 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                     />
                   );
                 })}
+                {showDelta ? (
+                  <div
+                    style={{
+                      width: DELTA_COLUMN_WIDTH,
+                      minWidth: DELTA_COLUMN_WIDTH,
+                      borderRight: '1px solid #eef2f7',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                ) : null}
               </div>
             );
           })}

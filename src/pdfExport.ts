@@ -2,8 +2,10 @@ import { jsPDF } from 'jspdf';
 import type { ProjectState, Task } from './types';
 import { computeVisibleRows } from './state/visibleRows';
 import { computeTicks, computeTimeline, pxForDate } from './gantt/timeline';
-import { COLUMNS, HEADER_HEIGHT, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './grid/columns';
+import { COLUMNS, DELTA_COLUMN_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, ROW_NUMBER_WIDTH } from './grid/columns';
+import { BAR_HEIGHT } from './gantt/constants';
 import { formatPredecessors } from './scheduling/predecessors';
+import { activeBaseline, computeBaselineDiff } from './state/baselineDiff';
 
 const FONT = `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 const PX_TO_MM = 0.264583;
@@ -68,7 +70,12 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
   const metrics = computeTimeline(expanded);
   const ticks = computeTicks(metrics, expanded.zoom);
 
-  const gridContentWidth = COLUMNS.reduce((a, c) => a + c.width, 0);
+  const baseline = activeBaseline(expanded);
+  const diff = computeBaselineDiff(expanded, baseline);
+  const showDelta = !!baseline;
+  const deltaW = showDelta ? DELTA_COLUMN_WIDTH : 0;
+
+  const gridContentWidth = COLUMNS.reduce((a, c) => a + c.width, 0) + deltaW;
   const gridWidth = ROW_NUMBER_WIDTH + gridContentWidth;
   const ganttWidth = metrics.width;
   const titleHeight = 36;
@@ -108,6 +115,12 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
     );
     parts.push(`<line x1="${xPos + c.width}" y1="${headerY}" x2="${xPos + c.width}" y2="${headerY + HEADER_HEIGHT}" stroke="#cbd5e1"/>`);
     xPos += c.width;
+  }
+  if (showDelta) {
+    parts.push(
+      `<text x="${xPos + 8}" y="${headerY + 22}" font-size="11" font-weight="600" fill="#334155">${svgEscape('Δ Baseline')}</text>`,
+    );
+    parts.push(`<line x1="${xPos + deltaW}" y1="${headerY}" x2="${xPos + deltaW}" y2="${headerY + HEADER_HEIGHT}" stroke="#cbd5e1"/>`);
   }
 
   const ganttHeaderX = gridWidth;
@@ -151,9 +164,58 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
       parts.push(`<line x1="${cellX + c.width}" y1="${y}" x2="${cellX + c.width}" y2="${y + ROW_HEIGHT}" stroke="#e5e7eb"/>`);
       cellX += c.width;
     }
+    if (showDelta) {
+      const d = diff.byId.get(row.task.id);
+      const text = !d ? '' : d.kind === 'new' ? 'neu' : d.finishDeltaWorkingDays === 0 ? '0' : d.finishDeltaWorkingDays > 0 ? `+${d.finishDeltaWorkingDays}` : `${d.finishDeltaWorkingDays}`;
+      const color =
+        !d || d.kind === 'new'
+          ? '#16a34a'
+          : d.finishDeltaWorkingDays > 0
+            ? '#dc2626'
+            : d.finishDeltaWorkingDays < 0
+              ? '#16a34a'
+              : '#64748b';
+      if (text) {
+        parts.push(
+          `<text x="${cellX + deltaW - 8}" y="${y + 18}" text-anchor="end" font-size="11" font-weight="600" fill="${color}">${svgEscape(text)}</text>`,
+        );
+      }
+      parts.push(`<line x1="${cellX + deltaW}" y1="${y}" x2="${cellX + deltaW}" y2="${y + ROW_HEIGHT}" stroke="#e5e7eb"/>`);
+    }
     parts.push(`<line x1="0" y1="${y + ROW_HEIGHT - 0.5}" x2="${totalWidth}" y2="${y + ROW_HEIGHT - 0.5}" stroke="#eef2f7"/>`);
 
     const task = row.task;
+    if (baseline) {
+      const snap = baseline.tasks[task.id];
+      if (snap) {
+        const gBarY = y + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+        if (snap.durationDays === 0) {
+          const gcx = ganttHeaderX + pxForDate(metrics, snap.start) + metrics.pxPerDay / 2;
+          const gcy = gBarY + BAR_HEIGHT / 2;
+          const gs = BAR_HEIGHT / 2 + 1;
+          const liveCx = ganttHeaderX + pxForDate(metrics, task.start) + metrics.pxPerDay / 2;
+          if (liveCx !== gcx) {
+            parts.push(`<line x1="${gcx}" y1="${gcy}" x2="${liveCx}" y2="${gcy}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`);
+          }
+          parts.push(
+            `<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3 2"/>`,
+          );
+        } else {
+          const gx = ganttHeaderX + pxForDate(metrics, snap.start);
+          const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
+          const gw = Math.max(gxEnd - gx, 2);
+          const gy = gBarY + BAR_HEIGHT - 1;
+          const gcy = gy + 2.5;
+          const liveEnd = ganttHeaderX + pxForDate(metrics, task.finish) + metrics.pxPerDay;
+          parts.push(
+            `<rect x="${gx}" y="${gy}" width="${gw}" height="5" rx="1.5" ry="1.5" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`,
+          );
+          if (liveEnd !== gxEnd) {
+            parts.push(`<line x1="${gxEnd}" y1="${gcy}" x2="${liveEnd}" y2="${gcy}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2"/>`);
+          }
+        }
+      }
+    }
     const barX = ganttHeaderX + pxForDate(metrics, task.start);
     const barXEnd = ganttHeaderX + pxForDate(metrics, task.finish) + metrics.pxPerDay;
     const barW = Math.max(barXEnd - barX, 2);

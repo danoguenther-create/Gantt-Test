@@ -1,5 +1,6 @@
 import type { DepType, Task } from '../types';
 import { pxForDate, type TimelineMetrics } from './timeline';
+import { BAR_HEIGHT } from './constants';
 
 interface Props {
   pred: Task;
@@ -10,8 +11,6 @@ interface Props {
   type: DepType;
   metrics: TimelineMetrics;
 }
-
-const BAR_HEIGHT = 16;
 
 export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, rowHeight, type, metrics }: Props) {
   const predYMid = predRowIndex * rowHeight + rowHeight / 2;

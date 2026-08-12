@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useState, type Dispatch, type ReactNode } from 'react';
 import { createElement } from 'react';
 import type {
+  Baseline,
+  BaselineTaskSnapshot,
   Dependency,
   NamedProject,
   ProjectState,
@@ -38,7 +40,11 @@ export type ProjectAction =
   | { type: 'OUTDENT'; id: TaskId }
   | { type: 'TOGGLE_COLLAPSE'; id: TaskId }
   | { type: 'SET_ZOOM'; zoom: ZoomLevel }
-  | { type: 'REPLACE_STATE'; state: ProjectState };
+  | { type: 'REPLACE_STATE'; state: ProjectState }
+  | { type: 'SAVE_BASELINE'; name: string }
+  | { type: 'DELETE_BASELINE'; id: string }
+  | { type: 'RENAME_BASELINE'; id: string; name: string }
+  | { type: 'SET_COMPARE_BASELINE'; id: string | null };
 
 export type WorkspaceAction =
   | { type: 'CREATE_PROJECT'; name: string; seed?: ProjectState }
@@ -50,6 +56,29 @@ export type Action = ProjectAction | WorkspaceAction;
 
 function recompute(state: ProjectState): ProjectState {
   return rollupSummaries(scheduleLeaves(state));
+}
+
+function snapshotTasks(state: ProjectState): Record<TaskId, BaselineTaskSnapshot> {
+  const snap: Record<TaskId, BaselineTaskSnapshot> = {};
+  for (const t of Object.values(state.tasks)) {
+    snap[t.id] = {
+      name: t.name,
+      start: t.start,
+      finish: t.finish,
+      durationDays: t.durationDays,
+      parentId: t.parentId,
+    };
+  }
+  return snap;
+}
+
+function genBaselineId(existing: Baseline[]): string {
+  let id: string;
+  const taken = new Set(existing.map((b) => b.id));
+  do {
+    id = `b-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  } while (taken.has(id));
+  return id;
 }
 
 function siblingOrderMax(state: ProjectState, parentId: TaskId | null): number {
@@ -261,6 +290,38 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       return { ...state, zoom: action.zoom };
     case 'REPLACE_STATE':
       return recompute(action.state);
+    case 'SAVE_BASELINE': {
+      const existing = state.baselines ?? [];
+      const baseline: Baseline = {
+        id: genBaselineId(existing),
+        name: action.name.trim() || `Baseline ${existing.length + 1}`,
+        savedAt: new Date().toISOString(),
+        tasks: snapshotTasks(state),
+      };
+      return { ...state, baselines: [...existing, baseline], compareBaselineId: baseline.id };
+    }
+    case 'DELETE_BASELINE': {
+      const existing = state.baselines ?? [];
+      const baselines = existing.filter((b) => b.id !== action.id);
+      if (baselines.length === existing.length) return state;
+      const compareBaselineId = state.compareBaselineId === action.id ? null : state.compareBaselineId;
+      return { ...state, baselines, compareBaselineId };
+    }
+    case 'RENAME_BASELINE': {
+      const existing = state.baselines ?? [];
+      const idx = existing.findIndex((b) => b.id === action.id);
+      if (idx === -1) return state;
+      const name = action.name.trim();
+      if (!name || name === existing[idx].name) return state;
+      const baselines = existing.map((b) => (b.id === action.id ? { ...b, name } : b));
+      return { ...state, baselines };
+    }
+    case 'SET_COMPARE_BASELINE': {
+      if ((state.compareBaselineId ?? null) === action.id) return state;
+      // Guard: only allow selecting a baseline that exists (null clears comparison).
+      if (action.id !== null && !(state.baselines ?? []).some((b) => b.id === action.id)) return state;
+      return { ...state, compareBaselineId: action.id };
+    }
     default:
       return state;
   }

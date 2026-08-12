@@ -25,6 +25,8 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap }: Props) 
   const [pdfExporting, setPdfExporting] = useState(false);
 
   const currentProject = workspace.projects[workspace.currentProjectId];
+  const baselines = state.baselines ?? [];
+  const compareBaseline = baselines.find((b) => b.id === state.compareBaselineId) ?? null;
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -192,6 +194,51 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap }: Props) 
         }}
       >
         ← Outdent
+      </button>
+
+      <span style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 6px' }} />
+
+      <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Baseline</span>
+      <button
+        style={btn}
+        title="Aktuellen Planstand als benannte Baseline einfrieren, um spätere Verschiebungen dagegen zu vergleichen"
+        onClick={() => {
+          const d = new Date();
+          const p = (n: number) => String(n).padStart(2, '0');
+          const def = `Baseline ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+          const name = prompt('Name der Baseline?', def);
+          if (name === null) return;
+          dispatch({ type: 'SAVE_BASELINE', name: name || def });
+        }}
+      >
+        Baseline speichern…
+      </button>
+      <select
+        value={state.compareBaselineId ?? ''}
+        onChange={(e) => dispatch({ type: 'SET_COMPARE_BASELINE', id: e.target.value || null })}
+        style={{ ...btn, padding: '3px 6px', minWidth: 130, cursor: 'pointer' }}
+        title="Baseline für den Vergleich wählen (Ghost-Bars + Δ-Spalte)"
+        disabled={baselines.length === 0}
+      >
+        <option value="">Vergleich: aus</option>
+        {baselines.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+      <button
+        style={compareBaseline ? btn : disabled}
+        disabled={!compareBaseline}
+        title={compareBaseline ? `Baseline "${compareBaseline.name}" löschen` : 'Keine Baseline zum Vergleich gewählt'}
+        onClick={() => {
+          if (!compareBaseline) return;
+          if (confirm(`Baseline "${compareBaseline.name}" löschen?`)) {
+            dispatch({ type: 'DELETE_BASELINE', id: compareBaseline.id });
+          }
+        }}
+      >
+        Baseline löschen
       </button>
 
       <span style={{ flex: 1 }} />

@@ -23,6 +23,8 @@ export const WRAP_ROW_HEIGHT = 56;
 export const HEADER_HEIGHT = 36;
 export const GHOST_ROWS = 20;
 export const MIN_COLUMN_WIDTH = 60;
+// Width of the read-only baseline-delta column, appended only while a baseline is being compared.
+export const DELTA_COLUMN_WIDTH = 90;
 
 export type ColumnWidths = Record<ColumnId, number>;
 

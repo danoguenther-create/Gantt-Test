@@ -1,10 +1,12 @@
 import { forwardRef, useMemo } from 'react';
 import type { ProjectState, VisibleRow } from '../types';
 import { Bar } from './Bar';
+import { GhostBar } from './GhostBar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
 import { computeTicks, computeTimeline, computeWeekBands, pxForDate } from './timeline';
 import { GHOST_ROWS } from '../grid/columns';
+import { activeBaseline } from '../state/baselineDiff';
 
 interface Props {
   state: ProjectState;
@@ -26,6 +28,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
 
   const bodyHeight = (rows.length + GHOST_ROWS) * rowHeight;
   const todayX = pxForDate(metrics, new Date().toISOString().slice(0, 10));
+  const baseline = useMemo(() => activeBaseline(state), [state]);
 
   return (
     <div style={{ flex: 1, minWidth: 0, background: '#fff', display: 'flex', flexDirection: 'column' }}>
@@ -58,6 +61,22 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
             {todayX >= 0 && todayX <= metrics.width ? (
               <line x1={todayX} y1={0} x2={todayX} y2={bodyHeight} stroke="#ef4444" strokeDasharray="4 3" />
             ) : null}
+            {baseline
+              ? rows.flatMap((r) => {
+                  const snap = baseline.tasks[r.task.id];
+                  if (!snap) return [];
+                  return [
+                    <GhostBar
+                      key={`ghost-${r.task.id}`}
+                      snapshot={snap}
+                      task={r.task}
+                      rowIndex={r.index}
+                      rowHeight={rowHeight}
+                      metrics={metrics}
+                    />,
+                  ];
+                })
+              : null}
             {rows.map((r) => (
               <Bar
                 key={r.task.id}

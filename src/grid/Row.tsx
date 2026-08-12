@@ -1,7 +1,8 @@
 import type { DragEvent } from 'react';
 import type { VisibleRow } from '../types';
+import type { TaskDiff } from '../state/baselineDiff';
 import { Cell, type NavDirection } from './Cell';
-import { COLUMNS, ROW_NUMBER_WIDTH, type ColumnWidths } from './columns';
+import { COLUMNS, DELTA_COLUMN_WIDTH, ROW_NUMBER_WIDTH, type ColumnWidths } from './columns';
 
 interface Props {
   row: VisibleRow;
@@ -13,12 +14,19 @@ interface Props {
   columnWidths: ColumnWidths;
   wrap: boolean;
   rowHeight: number;
+  showDelta: boolean;
+  rowDiff: TaskDiff | undefined;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
   onActivate: (colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
   onExtendSelection: (dir: 'up' | 'down') => void;
   onEditStarted: () => void;
+}
+
+function formatDelta(n: number): string {
+  if (n === 0) return '0';
+  return n > 0 ? `+${n}` : `${n}`;
 }
 
 export function Row({
@@ -31,6 +39,8 @@ export function Row({
   columnWidths,
   wrap,
   rowHeight,
+  showDelta,
+  rowDiff,
   onDragStart,
   onDragEnd,
   onActivate,
@@ -38,6 +48,8 @@ export function Row({
   onExtendSelection,
   onEditStarted,
 }: Props) {
+  const kind = rowDiff?.kind;
+  const rowTint = kind === 'new' ? '#dcfce7' : kind === 'renamed' ? '#fef9c3' : undefined;
   return (
     <div
       style={{
@@ -45,6 +57,7 @@ export function Row({
         display: 'flex',
         height: rowHeight,
         borderBottom: '1px solid #e5e7eb',
+        background: rowTint,
       }}
     >
       {dropPosition ? (
@@ -109,6 +122,42 @@ export function Row({
           onEditStarted={onEditStarted}
         />
       ))}
+      {showDelta ? (
+        <div
+          title={
+            rowDiff?.kind === 'new'
+              ? 'Neu gegenüber Baseline'
+              : rowDiff?.kind === 'renamed'
+                ? 'Umbenannt gegenüber Baseline'
+                : 'Verschiebung des Endtermins in Arbeitstagen gegenüber der Baseline'
+          }
+          style={{
+            width: DELTA_COLUMN_WIDTH,
+            minWidth: DELTA_COLUMN_WIDTH,
+            height: '100%',
+            padding: '0 8px',
+            display: 'flex',
+            alignItems: wrap ? 'flex-start' : 'center',
+            justifyContent: 'flex-end',
+            paddingTop: wrap ? 5 : 0,
+            boxSizing: 'border-box',
+            borderRight: '1px solid #e5e7eb',
+            fontSize: 12,
+            fontVariantNumeric: 'tabular-nums',
+            fontWeight: 600,
+            color:
+              !rowDiff || rowDiff.kind === 'new'
+                ? '#16a34a'
+                : rowDiff.finishDeltaWorkingDays > 0
+                  ? '#dc2626'
+                  : rowDiff.finishDeltaWorkingDays < 0
+                    ? '#16a34a'
+                    : '#64748b',
+          }}
+        >
+          {!rowDiff ? '' : rowDiff.kind === 'new' ? 'neu' : formatDelta(rowDiff.finishDeltaWorkingDays)}
+        </div>
+      ) : null}
     </div>
   );
 }

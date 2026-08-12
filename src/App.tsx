@@ -13,10 +13,12 @@ import type { NavDirection } from './grid/Cell';
 import { cellDisplayValue, commitCellValue } from './grid/cellValue';
 import { Gantt } from './gantt/Gantt';
 import { Toolbar } from './toolbar/Toolbar';
+import { BaselineImpact } from './toolbar/BaselineImpact';
 import { ExportReminder } from './ExportReminder';
 import { ProjectProvider, useDispatch, useProject, useWorkspace } from './state/store';
 import { loadViewPrefs, saveViewPrefs } from './state/persistence';
 import { computeVisibleRows } from './state/visibleRows';
+import { activeBaseline, computeBaselineDiff } from './state/baselineDiff';
 
 function predictNextId(tasks: Record<string, unknown>): string {
   let n = 1;
@@ -29,6 +31,8 @@ function Workspace() {
   const state = useProject();
   const dispatch = useDispatch();
   const rows = useMemo(() => computeVisibleRows(state), [state]);
+  const baseline = useMemo(() => activeBaseline(state), [state]);
+  const diff = useMemo(() => computeBaselineDiff(state, baseline), [state, baseline]);
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [pendingEditAt, setPendingEditAt] = useState<ActiveCell | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
@@ -293,6 +297,7 @@ function Workspace() {
         wrap={wrap}
         onToggleWrap={() => setWrap((w) => !w)}
       />
+      {baseline ? <BaselineImpact baseline={baseline} diff={diff} state={state} /> : null}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <Grid
           ref={gridScrollRef}
@@ -304,6 +309,8 @@ function Workspace() {
           columnWidths={columnWidths}
           wrap={wrap}
           rowHeight={rowHeight}
+          showDelta={!!baseline}
+          diffById={baseline ? diff.byId : null}
           onColumnResize={onColumnResize}
           onActivate={activate}
           onNavigate={navigate}

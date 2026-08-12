@@ -27,10 +27,30 @@ export interface Task {
 
 export type ZoomLevel = 'day' | 'week' | 'month';
 
+// A frozen snapshot of a single task's schedule + identity, used for baseline comparison.
+export interface BaselineTaskSnapshot {
+  name: string;
+  start: string;
+  finish: string;
+  durationDays: number;
+  parentId: TaskId | null;
+}
+
+// A named, frozen copy of the plan's schedule at a point in time. Tasks are keyed by Task.id
+// so a saved baseline can be diffed against the live plan even after tasks are reordered.
+export interface Baseline {
+  id: string;
+  name: string;
+  savedAt: string; // ISO timestamp
+  tasks: Record<TaskId, BaselineTaskSnapshot>;
+}
+
 export interface ProjectState {
   tasks: Record<TaskId, Task>;
   rootOrder: TaskId[];
   zoom: ZoomLevel;
+  baselines?: Baseline[];
+  compareBaselineId?: string | null; // which baseline is currently overlaid for comparison
 }
 
 export interface NamedProject {
