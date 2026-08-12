@@ -118,7 +118,16 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
       <div
+        ref={ref}
+        style={{ flex: 1, overflow: 'auto', userSelect: 'none' }}
+        onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
+      >
+      <div style={{ width: gridWidth, position: 'relative' }}>
+      <div
         style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 6,
           display: 'flex',
           height: HEADER_HEIGHT,
           width: gridWidth,
@@ -198,12 +207,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
           </div>
         ) : null}
       </div>
-      <div
-        ref={ref}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', width: gridWidth, userSelect: 'none' }}
-        onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
-      >
-        <div style={{ position: 'relative', height: totalRows * rowHeight, width: gridWidth }}>
+      <div style={{ position: 'relative', height: totalRows * rowHeight, width: gridWidth }}>
           {rows.map((row) => {
             const isActiveRow = activeCell?.rowId === row.task.id;
             const isSelectedRow = selectedRowIds.has(row.task.id);
@@ -360,6 +364,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
             />
           ) : null}
         </div>
+      </div>
       </div>
     </div>
   );
