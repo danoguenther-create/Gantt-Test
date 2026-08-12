@@ -5,7 +5,6 @@ import { GhostBar } from './GhostBar';
 import { DependencyArrow } from './DependencyArrow';
 import { TimelineHeader } from './TimelineHeader';
 import { computeTicks, computeTimeline, computeWeekBands, pxForDate } from './timeline';
-import { BAR_HEIGHT } from './constants';
 import { GHOST_ROWS } from '../grid/columns';
 import { activeBaseline } from '../state/baselineDiff';
 
@@ -62,6 +61,18 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
             {todayX >= 0 && todayX <= metrics.width ? (
               <line x1={todayX} y1={0} x2={todayX} y2={bodyHeight} stroke="#ef4444" strokeDasharray="4 3" />
             ) : null}
+            {rows.map((r) => (
+              <Bar
+                key={r.task.id}
+                task={r.task}
+                rowIndex={r.index}
+                rowHeight={rowHeight}
+                metrics={metrics}
+                isSummary={r.hasChildren}
+              />
+            ))}
+            {/* Grey baseline bars are drawn ON TOP of the live bars: the coloured plan shows
+                only where it extends beyond the baseline (later start / longer duration). */}
             {baseline
               ? rows.flatMap((r) => {
                   const snap = baseline.tasks[r.task.id];
@@ -75,40 +86,6 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                       metrics={metrics}
                       isSummary={r.hasChildren}
                     />,
-                  ];
-                })
-              : null}
-            {rows.map((r) => (
-              <Bar
-                key={r.task.id}
-                task={r.task}
-                rowIndex={r.index}
-                rowHeight={rowHeight}
-                metrics={metrics}
-                isSummary={r.hasChildren}
-              />
-            ))}
-            {baseline
-              ? rows.flatMap((r) => {
-                  const snap = baseline.tasks[r.task.id];
-                  if (!snap || snap.durationDays === 0) return [];
-                  const baseEndX = pxForDate(metrics, snap.finish) + metrics.pxPerDay;
-                  const liveEndX = pxForDate(metrics, r.task.finish) + metrics.pxPerDay;
-                  if (baseEndX === liveEndX) return []; // no change → no marker
-                  const yTop = r.index * rowHeight + (rowHeight - BAR_HEIGHT) / 2 - 2;
-                  return [
-                    <line
-                      key={`bend-${r.task.id}`}
-                      x1={baseEndX}
-                      y1={yTop}
-                      x2={baseEndX}
-                      y2={yTop + BAR_HEIGHT + 4}
-                      stroke="#475569"
-                      strokeWidth={2}
-                      pointerEvents="none"
-                    >
-                      <title>Baseline-Ende: {snap.name}</title>
-                    </line>,
                   ];
                 })
               : null}

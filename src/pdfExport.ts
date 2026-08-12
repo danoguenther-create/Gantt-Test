@@ -185,31 +185,6 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
     parts.push(`<line x1="0" y1="${y + ROW_HEIGHT - 0.5}" x2="${totalWidth}" y2="${y + ROW_HEIGHT - 0.5}" stroke="#eef2f7"/>`);
 
     const task = row.task;
-    if (baseline) {
-      const snap = baseline.tasks[task.id];
-      if (snap) {
-        // Grey ghost of the baseline position — same size/shape as the live bar, colour only.
-        const gBarY = y + (ROW_HEIGHT - BAR_HEIGHT) / 2;
-        const gx = ganttHeaderX + pxForDate(metrics, snap.start);
-        const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
-        const gw = Math.max(gxEnd - gx, 2);
-        if (snap.durationDays === 0) {
-          const gcx = gx + metrics.pxPerDay / 2;
-          const gcy = gBarY + BAR_HEIGHT / 2;
-          const gs = BAR_HEIGHT / 2 + 1;
-          parts.push(`<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="#94a3b8"/>`);
-        } else if (row.hasChildren) {
-          const midY = gBarY + BAR_HEIGHT / 2;
-          const capW = 6;
-          const capH = 4;
-          parts.push(`<rect x="${gx}" y="${midY - 2}" width="${gw}" height="4" fill="#94a3b8"/>`);
-          parts.push(`<polygon points="${gx},${midY - 2} ${gx + capW},${midY - 2} ${gx},${midY - 2 + capH}" fill="#94a3b8"/>`);
-          parts.push(`<polygon points="${gxEnd},${midY - 2} ${gxEnd - capW},${midY - 2} ${gxEnd},${midY - 2 + capH}" fill="#94a3b8"/>`);
-        } else {
-          parts.push(`<rect x="${gx}" y="${gBarY}" width="${gw}" height="${BAR_HEIGHT}" rx="3" ry="3" fill="#cbd5e1" stroke="#94a3b8"/>`);
-        }
-      }
-    }
     const barX = ganttHeaderX + pxForDate(metrics, task.start);
     const barXEnd = ganttHeaderX + pxForDate(metrics, task.finish) + metrics.pxPerDay;
     const barW = Math.max(barXEnd - barX, 2);
@@ -259,14 +234,29 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
       }
     }
 
-    // Baseline-end marker on top of the live bar, so an extended (or shortened) task is visible.
+    // Grey baseline ghost drawn ON TOP of the live bar — same shape, colour only. The coloured
+    // plan shows only where it extends beyond the baseline (later start / longer duration).
     if (baseline) {
       const snap = baseline.tasks[task.id];
-      if (snap && snap.durationDays !== 0) {
-        const baseEndX = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
-        if (baseEndX !== barXEnd) {
-          const mTop = barY - 2;
-          parts.push(`<line x1="${baseEndX}" y1="${mTop}" x2="${baseEndX}" y2="${mTop + barH + 4}" stroke="#475569" stroke-width="2"/>`);
+      if (snap) {
+        const gBarY = y + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+        const gx = ganttHeaderX + pxForDate(metrics, snap.start);
+        const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
+        const gw = Math.max(gxEnd - gx, 2);
+        if (snap.durationDays === 0) {
+          const gcx = gx + metrics.pxPerDay / 2;
+          const gcy = gBarY + BAR_HEIGHT / 2;
+          const gs = BAR_HEIGHT / 2 + 1;
+          parts.push(`<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="#94a3b8"/>`);
+        } else if (row.hasChildren) {
+          const midY = gBarY + BAR_HEIGHT / 2;
+          const capW = 6;
+          const capH = 4;
+          parts.push(`<rect x="${gx}" y="${midY - 2}" width="${gw}" height="4" fill="#94a3b8"/>`);
+          parts.push(`<polygon points="${gx},${midY - 2} ${gx + capW},${midY - 2} ${gx},${midY - 2 + capH}" fill="#94a3b8"/>`);
+          parts.push(`<polygon points="${gxEnd},${midY - 2} ${gxEnd - capW},${midY - 2} ${gxEnd},${midY - 2 + capH}" fill="#94a3b8"/>`);
+        } else {
+          parts.push(`<rect x="${gx}" y="${gBarY}" width="${gw}" height="${BAR_HEIGHT}" rx="3" ry="3" fill="#cbd5e1" stroke="#94a3b8"/>`);
         }
       }
     }
