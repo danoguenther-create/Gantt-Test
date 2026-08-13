@@ -305,7 +305,6 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
       {/* File: import / export */}
       <Menu
         label="Datei"
-        align="right"
         title="Import, Export, Beispieldaten"
         items={[
           { label: 'Export als JSON', onClick: () => { exportJson(state, `${safeName}_${timestamp()}.json`); markExported(); } },

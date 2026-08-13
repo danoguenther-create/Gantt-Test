@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface MenuItem {
   label: string;
@@ -12,15 +12,16 @@ interface Props {
   label: ReactNode;
   items: Array<MenuItem | 'separator'>;
   disabled?: boolean;
-  align?: 'left' | 'right';
   title?: string;
 }
 
 // Lightweight dropdown menu (no dependencies). Opens on click, closes on outside
-// click / Escape / item selection.
-export function Menu({ label, items, disabled, align = 'left', title }: Props) {
+// click / Escape / item selection. The popover auto-shifts to stay inside the viewport.
+export function Menu({ label, items, disabled, title }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [shift, setShift] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +37,22 @@ export function Menu({ label, items, disabled, align = 'left', title }: Props) {
       window.removeEventListener('mousedown', onDown);
       window.removeEventListener('keydown', onKey);
     };
+  }, [open]);
+
+  // Keep the popover inside the viewport: shift left if it overflows the right edge.
+  useLayoutEffect(() => {
+    if (!open) {
+      setShift(0);
+      return;
+    }
+    const el = popRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    let s = 0;
+    if (rect.right > window.innerWidth - margin) s = rect.right - (window.innerWidth - margin);
+    if (rect.left - s < margin) s = rect.left - margin; // don't push off the left edge
+    setShift(s);
   }, [open]);
 
   const btnStyle: React.CSSProperties = {
@@ -60,10 +77,12 @@ export function Menu({ label, items, disabled, align = 'left', title }: Props) {
       </button>
       {open ? (
         <div
+          ref={popRef}
           style={{
             position: 'absolute',
             top: '100%',
-            [align]: 0,
+            left: 0,
+            transform: shift ? `translateX(${-shift}px)` : undefined,
             marginTop: 4,
             zIndex: 50,
             minWidth: 210,
