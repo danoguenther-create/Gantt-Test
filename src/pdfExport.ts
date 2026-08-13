@@ -195,7 +195,8 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
       const cx = barX + metrics.pxPerDay / 2;
       const cy = barY + barH / 2;
       const s = barH / 2 + 1;
-      parts.push(`<polygon points="${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}" fill="#0f172a"/>`);
+      const msColor = task.status === 'Complete' ? '#16a34a' : '#0f172a';
+      parts.push(`<polygon points="${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}" fill="${msColor}"/>`);
       const label = svgEscape(truncateForWidth(task.name, Math.max(0, ganttWidth - (cx + s - ganttHeaderX) - 8)));
       if (label) {
         parts.push(
@@ -217,8 +218,9 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
       }
     } else {
       const inProgress = task.status === 'In Progress';
-      const fill = task.hasError ? '#fecaca' : inProgress ? '#fde68a' : '#60a5fa';
-      const stroke = task.hasError ? '#b91c1c' : inProgress ? '#d97706' : '#2563eb';
+      const complete = task.status === 'Complete';
+      const fill = task.hasError ? '#fecaca' : complete ? '#bbf7d0' : inProgress ? '#fde68a' : '#60a5fa';
+      const stroke = task.hasError ? '#b91c1c' : complete ? '#16a34a' : inProgress ? '#d97706' : '#2563eb';
       parts.push(
         `<rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="3" ry="3" fill="${fill}" stroke="${stroke}"/>`,
       );

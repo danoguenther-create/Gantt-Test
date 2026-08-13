@@ -24,8 +24,11 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary, dimmed, onH
   const width = Math.max(xFinish - xStart, 2);
 
   const inProgress = task.status === 'In Progress';
-  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : inProgress ? '#fde68a' : '#60a5fa';
-  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : inProgress ? '#d97706' : '#2563eb';
+  const complete = task.status === 'Complete';
+  const fill = task.hasError ? '#fecaca' : isSummary ? '#334155' : complete ? '#bbf7d0' : inProgress ? '#fde68a' : '#60a5fa';
+  const stroke = task.hasError ? '#b91c1c' : isSummary ? '#0f172a' : complete ? '#16a34a' : inProgress ? '#d97706' : '#2563eb';
+  // Milestones only change colour when completed (green); otherwise dark.
+  const msColor = complete ? '#16a34a' : '#0f172a';
 
   const onPointerDown = (kind: 'move' | 'resize-start' | 'resize-end') => (e: React.PointerEvent<SVGElement>) => {
     if (isSummary) return;
@@ -70,8 +73,8 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary, dimmed, onH
       <g {...gInteract}>
         <polygon
           points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
-          fill="#0f172a"
-          stroke="#0f172a"
+          fill={msColor}
+          stroke={msColor}
           onPointerDown={onPointerDown('move')}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
