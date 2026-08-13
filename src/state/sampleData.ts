@@ -1,95 +1,75 @@
-import type { ProjectState, Task } from '../types';
+import type { ProjectState } from '../types';
 
-function t(partial: Partial<Task> & Pick<Task, 'id' | 'name'>): Task {
-  return {
-    status: 'Not Started',
-    start: '2026-04-20',
-    finish: '2026-04-20',
-    durationDays: 1,
-    predecessors: [],
-    parentId: null,
-    order: 0,
-    ...partial,
-  } as Task;
-}
-
-const fs = (id: string, lag = 0) => ({ predecessorId: id, type: 'FS' as const, lagDays: lag });
-const ff = (id: string, lag = 0) => ({ predecessorId: id, type: 'FF' as const, lagDays: lag });
+// A4 Printing — Stand 2026-07-20 (aus dem Gantt-Tool exportierte JSON, Version 4).
+// Dieser Plan ist der Default-Workspace; editierte Stände liegen anschließend in localStorage.
+const A4_PRINTING: ProjectState = {
+  tasks: {
+    '1': { status: 'Not Started', start: '2026-04-16', finish: '2026-08-21', durationDays: 92, predecessors: [], parentId: null, order: 0, id: '1', name: 'A4 Printing', hasError: false },
+    '2': { status: 'Not Started', start: '2026-04-16', finish: '2026-07-10', durationDays: 62, predecessors: [], parentId: '1', order: 0, id: '2', name: 'Design', hasError: false },
+    '3': { status: 'In Progress', start: '2026-04-16', finish: '2026-04-17', durationDays: 2, predecessors: [], parentId: '2', order: 0, id: '3', name: 'Requirements', assignee: 'Nuno', hasError: false },
+    '4': { status: 'In Progress', start: '2026-04-16', finish: '2026-04-17', durationDays: 2, predecessors: [], parentId: '2', order: 1, id: '4', name: 'Two business cases to validate with logistics', assignee: 'Francisco', hasError: false },
+    '5': { status: 'In Progress', start: '2026-05-25', finish: '2026-05-25', durationDays: 0, predecessors: [], parentId: '2', order: 2, id: '5', name: 'Sign off contracts with printing vendor(s)', assignee: 'PuC', hasError: false },
+    '6': { status: 'In Progress', start: '2026-07-10', finish: '2026-07-10', durationDays: 0, predecessors: [], parentId: '2', order: 3, id: '6', name: 'Solution design document', assignee: 'PuC', hasError: false },
+    '7': { status: 'Not Started', start: '2026-07-13', finish: '2026-08-07', durationDays: 20, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '1', order: 1, id: '7', name: 'Implementation of printing system', assignee: 'PuC', hasError: false },
+    '8': { status: 'Not Started', start: '2026-07-13', finish: '2026-08-07', durationDays: 20, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '7', order: 0, id: '8', name: 'Pull (Stores)', assignee: 'PuC', hasError: false },
+    '9': { status: 'Not Started', start: '2026-07-13', finish: '2026-08-07', durationDays: 20, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '7', order: 1, id: '9', name: 'Push (Warehouse)', assignee: 'PuC', hasError: false },
+    '10': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [], parentId: '1', order: 2, id: '10', name: 'FDD Updates', hasError: false },
+    '11': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 0, id: '11', name: 'VAS FDD update', assignee: 'Francisco', hasError: false },
+    '12': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 1, id: '12', name: 'Worklist FDD update', assignee: 'Pedro', hasError: false },
+    '13': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 2, id: '13', name: 'WMS Config/documentation update', assignee: 'Federico', hasError: false },
+    '14': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 3, id: '14', name: 'Transportation app FDD update', assignee: 'Pedro', hasError: false },
+    '15': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 4, id: '15', name: 'OG Sales FDD', assignee: 'Pedro', hasError: false },
+    '16': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 5, id: '16', name: 'Tailoring FDD', assignee: 'Pedro', hasError: false },
+    '17': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 6, id: '17', name: 'Integration FDD', assignee: 'Antonio', hasError: false },
+    '18': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 7, id: '18', name: 'Return Authorization FDD', assignee: 'Jan', hasError: false },
+    '19': { status: 'Not Started', start: '2026-07-13', finish: '2026-07-17', durationDays: 5, predecessors: [{ predecessorId: '6', type: 'FS', lagDays: 0 }], parentId: '10', order: 8, id: '19', name: 'NFT Dashboard (Depending on use cases)', assignee: 'Francisco', hasError: false },
+    '20': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [], parentId: '1', order: 3, id: '20', name: 'Approvals', hasError: false },
+    '21': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '11', type: 'FS', lagDays: 0 }], parentId: '20', order: 0, id: '21', name: 'VAS FDD approval', assignee: 'PuC', hasError: false },
+    '22': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '12', type: 'FS', lagDays: 0 }], parentId: '20', order: 1, id: '22', name: 'Worklist FDD approval', assignee: 'PuC', hasError: false },
+    '23': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '13', type: 'FS', lagDays: 0 }], parentId: '20', order: 2, id: '23', name: 'WMS Config/documentation approval', assignee: 'PuC', hasError: false },
+    '24': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '14', type: 'FS', lagDays: 0 }], parentId: '20', order: 3, id: '24', name: 'Transportation app FDD approval', assignee: 'PuC', hasError: false },
+    '25': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '15', type: 'FS', lagDays: 0 }], parentId: '20', order: 4, id: '25', name: 'OG Sales FDD approval', assignee: 'PuC', hasError: false },
+    '26': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '16', type: 'FS', lagDays: 0 }], parentId: '20', order: 5, id: '26', name: 'Tailoring FDD approval', assignee: 'PuC', hasError: false },
+    '27': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '17', type: 'FS', lagDays: 0 }, { predecessorId: '5', type: 'FS', lagDays: 0 }], parentId: '20', order: 6, id: '27', name: 'Integration approval', assignee: 'Antonio', hasError: false },
+    '28': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '18', type: 'FS', lagDays: 0 }], parentId: '20', order: 7, id: '28', name: 'Return Authorization approval', assignee: 'Jan', hasError: false },
+    '29': { status: 'Not Started', start: '2026-07-20', finish: '2026-07-24', durationDays: 5, predecessors: [{ predecessorId: '19', type: 'FS', lagDays: 0 }], parentId: '20', order: 8, id: '29', name: 'NFT Dashboard (Depending on use cases)', assignee: 'Francisco', hasError: false },
+    '30': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [], parentId: '1', order: 4, id: '30', name: 'Estimations', hasError: false },
+    '31': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '21', type: 'FS', lagDays: 0 }], parentId: '30', order: 0, id: '31', name: 'VAS FDD estimation', assignee: 'RDT', hasError: false },
+    '32': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '22', type: 'FS', lagDays: 0 }], parentId: '30', order: 1, id: '32', name: 'Worklist FDD estimation', assignee: 'RDT', hasError: false },
+    '33': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '23', type: 'FS', lagDays: 0 }], parentId: '30', order: 2, id: '33', name: 'WMS Config/documentation estimation', assignee: 'Federico', hasError: false },
+    '34': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '24', type: 'FS', lagDays: 0 }], parentId: '30', order: 3, id: '34', name: 'Transportation app FDD estimation', assignee: 'RDT', hasError: false },
+    '35': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '25', type: 'FS', lagDays: 0 }], parentId: '30', order: 4, id: '35', name: 'OG Sales FDD estimation', assignee: 'RDT', hasError: false },
+    '36': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '26', type: 'FS', lagDays: 0 }], parentId: '30', order: 5, id: '36', name: 'Tailoring FDD estimation', assignee: 'RDT', hasError: false },
+    '37': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '27', type: 'FS', lagDays: 0 }, { predecessorId: '5', type: 'FS', lagDays: 0 }], parentId: '30', order: 6, id: '37', name: 'Integration estimation', assignee: 'Antonio', hasError: false },
+    '38': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '28', type: 'FS', lagDays: 0 }], parentId: '30', order: 7, id: '38', name: 'Return Authorization estimation', assignee: 'Jan', hasError: false },
+    '39': { status: 'Not Started', start: '2026-07-27', finish: '2026-07-31', durationDays: 5, predecessors: [{ predecessorId: '29', type: 'FS', lagDays: 0 }], parentId: '30', order: 8, id: '39', name: 'NFT Dashboard (Depending on use cases)', assignee: 'Francisco', hasError: false },
+    '40': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-21', durationDays: 15, predecessors: [], parentId: '1', order: 5, id: '40', name: 'Build & UT', hasError: false },
+    '41': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '7', type: 'FF', lagDays: 0 }], parentId: '40', order: 0, id: '41', name: 'Build', hasError: false },
+    '42': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '31', type: 'FS', lagDays: 0 }], parentId: '41', order: 0, id: '42', name: 'VAS', assignee: 'RDT', hasError: false },
+    '43': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '32', type: 'FS', lagDays: 0 }], parentId: '41', order: 1, id: '43', name: 'Worklist', assignee: 'RDT', hasError: false },
+    '44': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '33', type: 'FS', lagDays: 0 }], parentId: '41', order: 2, id: '44', name: 'WMS', assignee: 'Federico', hasError: false },
+    '45': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '34', type: 'FS', lagDays: 0 }], parentId: '41', order: 3, id: '45', name: 'Transportation', assignee: 'RDT', hasError: false },
+    '46': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '35', type: 'FS', lagDays: 0 }], parentId: '41', order: 4, id: '46', name: 'OG Sales', assignee: 'RDT', hasError: false },
+    '47': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '36', type: 'FS', lagDays: 0 }], parentId: '41', order: 5, id: '47', name: 'Tailoring', assignee: 'RDT', hasError: false },
+    '48': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '37', type: 'FS', lagDays: 0 }], parentId: '41', order: 6, id: '48', name: 'Integration', assignee: 'Antonio', hasError: false },
+    '49': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '38', type: 'FS', lagDays: 0 }], parentId: '41', order: 7, id: '49', name: 'Return Authorization', assignee: 'Jan', hasError: false },
+    '50': { status: 'Not Started', start: '2026-08-03', finish: '2026-08-14', durationDays: 10, predecessors: [{ predecessorId: '39', type: 'FS', lagDays: 0 }], parentId: '41', order: 8, id: '50', name: 'NFT Dashboard (Depending on use cases)', assignee: 'Francisco', hasError: false },
+    '51': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '41', type: 'FS', lagDays: 0 }], parentId: '40', order: 1, id: '51', name: 'Unit Test', hasError: false },
+    '52': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '42', type: 'FS', lagDays: 0 }], parentId: '51', order: 0, id: '52', name: 'VAS', assignee: 'RDT', hasError: false },
+    '53': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '43', type: 'FS', lagDays: 0 }], parentId: '51', order: 1, id: '53', name: 'Worklist', assignee: 'RDT', hasError: false },
+    '54': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '44', type: 'FS', lagDays: 0 }], parentId: '51', order: 2, id: '54', name: 'WMS', assignee: 'Federico', hasError: false },
+    '55': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '45', type: 'FS', lagDays: 0 }], parentId: '51', order: 3, id: '55', name: 'Transportation', assignee: 'RDT', hasError: false },
+    '56': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '46', type: 'FS', lagDays: 0 }], parentId: '51', order: 4, id: '56', name: 'OG Sales', assignee: 'RDT', hasError: false },
+    '57': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '47', type: 'FS', lagDays: 0 }], parentId: '51', order: 5, id: '57', name: 'Tailoring', assignee: 'RDT', hasError: false },
+    '58': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '48', type: 'FS', lagDays: 0 }], parentId: '51', order: 6, id: '58', name: 'Integration estimation', assignee: 'Antonio', hasError: false },
+    '59': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '49', type: 'FS', lagDays: 0 }], parentId: '51', order: 7, id: '59', name: 'Return Authorization estimation', assignee: 'Jan', hasError: false },
+    '60': { status: 'Not Started', start: '2026-08-17', finish: '2026-08-21', durationDays: 5, predecessors: [{ predecessorId: '50', type: 'FS', lagDays: 0 }], parentId: '51', order: 8, id: '60', name: 'NFT Dashboard (Depending on use cases)', assignee: 'Francisco', hasError: false },
+  },
+  rootOrder: ['1'],
+  zoom: 'day',
+};
 
 export function buildSampleProject(): ProjectState {
-  const tasks: Task[] = [
-    t({ id: '1', name: 'A4 Printing', parentId: null, order: 0 }),
-
-    t({ id: '2', name: 'Design', parentId: '1', order: 0 }),
-    t({ id: '3', name: 'Requirements', parentId: '2', order: 0, assignee: 'Nuno', status: 'In Progress', start: '2026-04-16', finish: '2026-04-17', durationDays: 2 }),
-    t({ id: '4', name: 'Two business cases to validate with logistics', parentId: '2', order: 1, assignee: 'Francisco', status: 'In Progress', start: '2026-04-16', finish: '2026-04-17', durationDays: 2 }),
-    t({ id: '5', name: 'Sign off contracts with printing vendor(s)', parentId: '2', order: 2, assignee: 'PuC', status: 'In Progress', start: '2026-04-20', finish: '2026-04-20', durationDays: 0 }),
-    t({ id: '6', name: 'Solution design document', parentId: '2', order: 3, assignee: 'PuC', status: 'In Progress', start: '2026-04-27', finish: '2026-04-27', durationDays: 0 }),
-
-    t({ id: '7', name: 'Implementation of printing system', parentId: '1', order: 1, assignee: 'PuC', start: '2026-04-27', finish: '2026-05-22', durationDays: 20, predecessors: [fs('6')] }),
-    t({ id: '8', name: 'Pull (Stores)', parentId: '7', order: 0, assignee: 'PuC', start: '2026-04-27', finish: '2026-05-22', durationDays: 20 }),
-    t({ id: '9', name: 'Push (Warehouse)', parentId: '7', order: 1, assignee: 'PuC', start: '2026-04-27', finish: '2026-05-22', durationDays: 20 }),
-
-    t({ id: '10', name: 'FDD Updates', parentId: '1', order: 2 }),
-    t({ id: '11', name: 'VAS FDD update', parentId: '10', order: 0, assignee: 'Francisco', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '12', name: 'Worklist FDD update', parentId: '10', order: 1, assignee: 'Pedro', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '13', name: 'WMS Config/documentation update', parentId: '10', order: 2, assignee: 'Federico', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '14', name: 'Transportation app FDD update', parentId: '10', order: 3, assignee: 'Pedro', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '15', name: 'OG Sales FDD', parentId: '10', order: 4, assignee: 'Pedro', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '16', name: 'Tailoring FDD', parentId: '10', order: 5, assignee: 'Pedro', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '17', name: 'Integration FDD', parentId: '10', order: 6, assignee: 'Antonio', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '18', name: 'Return Authorization FDD', parentId: '10', order: 7, assignee: 'Jan', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-    t({ id: '19', name: 'NFT Dashboard (Depending on use cases)', parentId: '10', order: 8, assignee: 'Francisco', durationDays: 5, start: '2026-04-27', finish: '2026-05-01', predecessors: [fs('6')] }),
-
-    t({ id: '20', name: 'Approvals', parentId: '1', order: 3 }),
-    t({ id: '21', name: 'VAS FDD approval', parentId: '20', order: 0, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('11')] }),
-    t({ id: '22', name: 'Worklist FDD approval', parentId: '20', order: 1, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('12')] }),
-    t({ id: '23', name: 'WMS Config/documentation approval', parentId: '20', order: 2, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('13')] }),
-    t({ id: '24', name: 'Transportation app FDD approval', parentId: '20', order: 3, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('14')] }),
-    t({ id: '25', name: 'OG Sales FDD approval', parentId: '20', order: 4, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('15')] }),
-    t({ id: '26', name: 'Tailoring FDD approval', parentId: '20', order: 5, assignee: 'PuC', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('16')] }),
-    t({ id: '27', name: 'Integration approval', parentId: '20', order: 6, assignee: 'Antonio', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('17'), fs('5')] }),
-    t({ id: '28', name: 'Return Authorization approval', parentId: '20', order: 7, assignee: 'Jan', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('18')] }),
-    t({ id: '29', name: 'NFT Dashboard (Depending on use cases)', parentId: '20', order: 8, assignee: 'Francisco', durationDays: 5, start: '2026-05-04', finish: '2026-05-08', predecessors: [fs('19')] }),
-
-    t({ id: '30', name: 'Estimations', parentId: '1', order: 4 }),
-    t({ id: '31', name: 'VAS FDD estimation', parentId: '30', order: 0, assignee: 'RDT', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('21')] }),
-    t({ id: '32', name: 'Worklist FDD estimation', parentId: '30', order: 1, assignee: 'RDT', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('22')] }),
-    t({ id: '33', name: 'WMS Config/documentation estimation', parentId: '30', order: 2, assignee: 'Federico', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('23')] }),
-    t({ id: '34', name: 'Transportation app FDD estimation', parentId: '30', order: 3, assignee: 'RDT', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('24')] }),
-    t({ id: '35', name: 'OG Sales FDD estimation', parentId: '30', order: 4, assignee: 'RDT', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('25')] }),
-    t({ id: '36', name: 'Tailoring FDD estimation', parentId: '30', order: 5, assignee: 'RDT', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('26')] }),
-    t({ id: '37', name: 'Integration estimation', parentId: '30', order: 6, assignee: 'Antonio', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('27'), fs('5')] }),
-    t({ id: '38', name: 'Return Authorization estimation', parentId: '30', order: 7, assignee: 'Jan', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('28')] }),
-    t({ id: '39', name: 'NFT Dashboard (Depending on use cases)', parentId: '30', order: 8, assignee: 'Francisco', durationDays: 5, start: '2026-05-11', finish: '2026-05-15', predecessors: [fs('29')] }),
-
-    t({ id: '40', name: 'Build & UT', parentId: '1', order: 5 }),
-    t({ id: '41', name: 'Build', parentId: '40', order: 0, durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [ff('7')] }),
-    t({ id: '42', name: 'VAS', parentId: '41', order: 0, assignee: 'RDT', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('31')] }),
-    t({ id: '43', name: 'Worklist', parentId: '41', order: 1, assignee: 'RDT', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('32')] }),
-    t({ id: '44', name: 'WMS', parentId: '41', order: 2, assignee: 'Federico', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('33')] }),
-    t({ id: '45', name: 'Transportation', parentId: '41', order: 3, assignee: 'RDT', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('34')] }),
-    t({ id: '46', name: 'OG Sales', parentId: '41', order: 4, assignee: 'RDT', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('35')] }),
-    t({ id: '47', name: 'Tailoring', parentId: '41', order: 5, assignee: 'RDT', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('36')] }),
-    t({ id: '48', name: 'Integration', parentId: '41', order: 6, assignee: 'Antonio', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('37')] }),
-    t({ id: '49', name: 'Return Authorization', parentId: '41', order: 7, assignee: 'Jan', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('38')] }),
-    t({ id: '50', name: 'NFT Dashboard (Depending on use cases)', parentId: '41', order: 8, assignee: 'Francisco', durationDays: 10, start: '2026-05-18', finish: '2026-05-29', predecessors: [fs('39')] }),
-
-    t({ id: '51', name: 'Unit Test', parentId: '40', order: 1, durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('41')] }),
-    t({ id: '52', name: 'VAS', parentId: '51', order: 0, assignee: 'RDT', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('42')] }),
-    t({ id: '53', name: 'Worklist', parentId: '51', order: 1, assignee: 'RDT', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('43')] }),
-    t({ id: '54', name: 'WMS', parentId: '51', order: 2, assignee: 'Federico', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('44')] }),
-    t({ id: '55', name: 'Transportation', parentId: '51', order: 3, assignee: 'RDT', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('45')] }),
-    t({ id: '56', name: 'OG Sales', parentId: '51', order: 4, assignee: 'RDT', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('46')] }),
-    t({ id: '57', name: 'Tailoring', parentId: '51', order: 5, assignee: 'RDT', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('47')] }),
-    t({ id: '58', name: 'Integration estimation', parentId: '51', order: 6, assignee: 'Antonio', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('48')] }),
-    t({ id: '59', name: 'Return Authorization estimation', parentId: '51', order: 7, assignee: 'Jan', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('49')] }),
-    t({ id: '60', name: 'NFT Dashboard (Depending on use cases)', parentId: '51', order: 8, assignee: 'Francisco', durationDays: 5, start: '2026-06-01', finish: '2026-06-05', predecessors: [fs('50')] }),
-  ];
-
-  const byId: Record<string, Task> = {};
-  for (const task of tasks) byId[task.id] = task;
-  const rootOrder = tasks.filter((x) => x.parentId === null).sort((a, b) => a.order - b.order).map((x) => x.id);
-
-  return { tasks: byId, rootOrder, zoom: 'week' };
+  // tiefe Kopie, damit der Default nie versehentlich mutiert wird
+  return JSON.parse(JSON.stringify(A4_PRINTING)) as ProjectState;
 }
