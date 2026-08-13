@@ -10,9 +10,11 @@ interface Props {
   rowHeight: number;
   type: DepType;
   metrics: TimelineMetrics;
+  highlighted?: boolean;
+  dimmed?: boolean;
 }
 
-export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, rowHeight, type, metrics }: Props) {
+export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, rowHeight, type, metrics, highlighted, dimmed }: Props) {
   const predYMid = predRowIndex * rowHeight + rowHeight / 2;
   const succYMid = succRowIndex * rowHeight + rowHeight / 2;
   const predStartX = pxForDate(metrics, pred.start);
@@ -62,10 +64,14 @@ export function DependencyArrow({ pred, succ, predRowIndex, succRowIndex, rowHei
   const arrowDir = toSide === 'left' ? 1 : -1;
   const arrow = `${toX},${succYMid} ${toX - 6 * arrowDir},${succYMid - 4} ${toX - 6 * arrowDir},${succYMid + 4}`;
 
+  const color = highlighted ? '#1d4ed8' : '#475569';
+  const strokeWidth = highlighted ? 2 : 1;
+  const opacity = dimmed ? 0.12 : 1;
+
   return (
-    <g>
-      <polyline points={points.join(' ')} fill="none" stroke="#475569" strokeWidth={1} />
-      <polygon points={arrow} fill="#475569" />
+    <g opacity={opacity}>
+      <polyline points={points.join(' ')} fill="none" stroke={color} strokeWidth={strokeWidth} />
+      <polygon points={arrow} fill={color} />
     </g>
   );
 }

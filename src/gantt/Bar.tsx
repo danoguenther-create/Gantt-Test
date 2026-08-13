@@ -10,9 +10,11 @@ interface Props {
   rowHeight: number;
   metrics: TimelineMetrics;
   isSummary: boolean;
+  dimmed?: boolean;
+  onHover?: (id: string | null) => void;
 }
 
-export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
+export function Bar({ task, rowIndex, rowHeight, metrics, isSummary, dimmed, onHover }: Props) {
   const dispatch = useDispatch();
   const dragState = useRef<{ kind: 'move' | 'resize-start' | 'resize-end'; startX: number; committedDays: number } | null>(null);
 
@@ -54,12 +56,18 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
     dragState.current = null;
   };
 
+  const gInteract = {
+    opacity: dimmed ? 0.2 : 1,
+    onMouseEnter: () => onHover?.(task.id),
+    onMouseLeave: () => onHover?.(null),
+  };
+
   if (task.durationDays === 0) {
     const cx = xStart + metrics.pxPerDay / 2;
     const cy = y + BAR_HEIGHT / 2;
     const s = BAR_HEIGHT / 2 + 1;
     return (
-      <g>
+      <g {...gInteract}>
         <polygon
           points={`${cx},${cy - s} ${cx + s},${cy} ${cx},${cy + s} ${cx - s},${cy}`}
           fill="#0f172a"
@@ -88,7 +96,7 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
     const capW = 6;
     const capH = 4;
     return (
-      <g>
+      <g {...gInteract}>
         <rect x={xStart} y={y + BAR_HEIGHT / 2 - 2} width={width} height={4} fill={fill} />
         <polygon points={`${xStart},${y + BAR_HEIGHT / 2 - 2} ${xStart + capW},${y + BAR_HEIGHT / 2 - 2} ${xStart},${y + BAR_HEIGHT / 2 - 2 + capH}`} fill={fill} />
         <polygon points={`${xFinish},${y + BAR_HEIGHT / 2 - 2} ${xFinish - capW},${y + BAR_HEIGHT / 2 - 2} ${xFinish},${y + BAR_HEIGHT / 2 - 2 + capH}`} fill={fill} />
@@ -108,7 +116,7 @@ export function Bar({ task, rowIndex, rowHeight, metrics, isSummary }: Props) {
   }
 
   return (
-    <g>
+    <g {...gInteract}>
       <rect
         x={xStart}
         y={y}

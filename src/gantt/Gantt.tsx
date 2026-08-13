@@ -1,4 +1,4 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import type { ProjectState, VisibleRow } from '../types';
 import { Bar } from './Bar';
 import { GhostBar } from './GhostBar';
@@ -30,6 +30,53 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
   const bodyHeight = (rows.length + GHOST_ROWS) * rowHeight;
   const todayX = pxForDate(metrics, new Date().toISOString().slice(0, 10));
   const baseline = useMemo(() => activeBaseline(state), [state]);
+
+  // Dependency-path highlighting on hover (no click needed).
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const successorsOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const t of Object.values(state.tasks)) {
+      for (const dep of t.predecessors) {
+        const arr = m.get(dep.predecessorId);
+        if (arr) arr.push(t.id);
+        else m.set(dep.predecessorId, [t.id]);
+      }
+    }
+    return m;
+  }, [state.tasks]);
+
+  // Transitive predecessors + successors of the hovered task, plus the edges connecting them.
+  const highlight = useMemo(() => {
+    if (!hoveredId || !state.tasks[hoveredId]) return null;
+    const nodes = new Set<string>([hoveredId]);
+    const edges = new Set<string>();
+    const up = [hoveredId];
+    while (up.length) {
+      const n = up.pop()!;
+      const t = state.tasks[n];
+      if (!t) continue;
+      for (const dep of t.predecessors) {
+        edges.add(`${dep.predecessorId}->${n}`);
+        if (!nodes.has(dep.predecessorId)) {
+          nodes.add(dep.predecessorId);
+          up.push(dep.predecessorId);
+        }
+      }
+    }
+    const down = [hoveredId];
+    while (down.length) {
+      const n = down.pop()!;
+      for (const succ of successorsOf.get(n) ?? []) {
+        edges.add(`${n}->${succ}`);
+        if (!nodes.has(succ)) {
+          nodes.add(succ);
+          down.push(succ);
+        }
+      }
+    }
+    return { nodes, edges };
+  }, [hoveredId, state.tasks, successorsOf]);
 
   return (
     <div style={{ flex: 1, minWidth: 0, background: '#fff', display: 'flex', flexDirection: 'column' }}>
@@ -70,6 +117,8 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                 rowHeight={rowHeight}
                 metrics={metrics}
                 isSummary={r.hasChildren}
+                dimmed={!!highlight && !highlight.nodes.has(r.task.id)}
+                onHover={setHoveredId}
               />
             ))}
             {/* Grey baseline bars are drawn ON TOP of the live bars: the coloured plan shows
@@ -98,9 +147,11 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                   const predIdx = visibleIndexById.get(dep.predecessorId);
                   const pred = state.tasks[dep.predecessorId];
                   if (predIdx === undefined || !pred) return null;
+                  const edgeKey = `${dep.predecessorId}->${r.task.id}`;
+                  const isHi = highlight?.edges.has(edgeKey) ?? false;
                   return (
                     <DependencyArrow
-                      key={`${dep.predecessorId}->${r.task.id}-${dep.type}`}
+                      key={`${edgeKey}-${dep.type}`}
                       pred={pred}
                       succ={r.task}
                       predRowIndex={predIdx}
@@ -108,6 +159,8 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                       rowHeight={rowHeight}
                       type={dep.type}
                       metrics={metrics}
+                      highlighted={isHi}
+                      dimmed={!!highlight && !isHi}
                     />
                   );
                 })
