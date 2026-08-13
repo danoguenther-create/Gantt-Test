@@ -13,10 +13,12 @@ interface Props {
   rows: VisibleRow[];
   rowHeight: number;
   showDependencies: boolean;
+  hoveredRowId: string | null;
+  onRowHover: (rowId: string | null) => void;
   onScroll: (top: number) => void;
 }
 
-export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, rowHeight, showDependencies, onScroll }, ref) {
+export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, rows, rowHeight, showDependencies, hoveredRowId, onRowHover, onScroll }, ref) {
   const metrics = useMemo(() => computeTimeline(state), [state]);
   const ticks = useMemo(() => computeTicks(metrics, state.zoom), [metrics, state.zoom]);
   const weekBands = useMemo(() => computeWeekBands(metrics), [metrics]);
@@ -30,6 +32,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
   const bodyHeight = (rows.length + GHOST_ROWS) * rowHeight;
   const todayX = pxForDate(metrics, new Date().toISOString().slice(0, 10));
   const baseline = useMemo(() => activeBaseline(state), [state]);
+  const hoveredIdx = hoveredRowId != null ? visibleIndexById.get(hoveredRowId) : undefined;
 
   // Dependency-path highlighting on hover (no click needed).
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -89,7 +92,17 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
           <div style={{ position: 'sticky', top: 0, zIndex: 2, width: metrics.width, background: '#f8fafc' }}>
             <TimelineHeader metrics={metrics} ticks={ticks} />
           </div>
-          <svg width={metrics.width} height={Math.max(bodyHeight, 1)} style={{ display: 'block' }}>
+          <svg
+            width={metrics.width}
+            height={Math.max(bodyHeight, 1)}
+            style={{ display: 'block' }}
+            onMouseMove={(e) => {
+              const top = e.currentTarget.getBoundingClientRect().top;
+              const idx = Math.floor((e.clientY - top) / rowHeight);
+              onRowHover(idx >= 0 && idx < rows.length ? rows[idx].task.id : null);
+            }}
+            onMouseLeave={() => onRowHover(null)}
+          >
             <defs>
               <pattern id="rowStripe" x="0" y="0" width={metrics.pxPerDay * 7} height={rowHeight * 2} patternUnits="userSpaceOnUse">
                 <rect x="0" y="0" width={metrics.pxPerDay * 7} height={rowHeight} fill="#ffffff" />
@@ -97,6 +110,9 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
               </pattern>
             </defs>
             <rect x={0} y={0} width={metrics.width} height={bodyHeight} fill="url(#rowStripe)" />
+            {hoveredIdx !== undefined ? (
+              <rect x={0} y={hoveredIdx * rowHeight} width={metrics.width} height={rowHeight} fill="#e5edf7" />
+            ) : null}
             {weekBands.map((band) => (
               <g key={band.iso}>
                 {band.shaded ? <rect x={band.x} y={0} width={band.width} height={bodyHeight} fill="#e2e8f0" opacity={0.32} /> : null}

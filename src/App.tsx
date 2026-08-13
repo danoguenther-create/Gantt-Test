@@ -37,6 +37,7 @@ function Workspace() {
   const [pendingEditAt, setPendingEditAt] = useState<ActiveCell | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
   const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
   const dragSelecting = useRef(false);
 
   const initialPrefs = useMemo(() => loadViewPrefs(), []);
@@ -314,16 +315,27 @@ function Workspace() {
           rowHeight={rowHeight}
           showDelta={!!baseline}
           diffById={baseline ? diff.byId : null}
+          hoveredRowId={hoveredRowId}
           onColumnResize={onColumnResize}
           onActivate={activate}
           onNavigate={navigate}
           onExtendSelection={extendSelection}
           onRowMouseDown={onRowMouseDown}
           onRowMouseEnter={onRowMouseEnter}
+          onRowHover={setHoveredRowId}
           onEditStarted={clearPendingEdit}
           onScroll={onGridScroll}
         />
-        <Gantt ref={ganttScrollRef} state={state} rows={rows} rowHeight={rowHeight} showDependencies={showDependencies} onScroll={onGanttScroll} />
+        <Gantt
+          ref={ganttScrollRef}
+          state={state}
+          rows={rows}
+          rowHeight={rowHeight}
+          showDependencies={showDependencies}
+          hoveredRowId={hoveredRowId}
+          onRowHover={setHoveredRowId}
+          onScroll={onGanttScroll}
+        />
       </div>
     </div>
   );

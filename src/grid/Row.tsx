@@ -16,6 +16,7 @@ interface Props {
   rowHeight: number;
   showDelta: boolean;
   rowDiff: TaskDiff | undefined;
+  hovered: boolean;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
   onActivate: (colIdx: number) => void;
@@ -41,6 +42,7 @@ export function Row({
   rowHeight,
   showDelta,
   rowDiff,
+  hovered,
   onDragStart,
   onDragEnd,
   onActivate,
@@ -57,7 +59,7 @@ export function Row({
         display: 'flex',
         height: rowHeight,
         borderBottom: '1px solid #e5e7eb',
-        background: rowTint,
+        background: hovered ? '#e5edf7' : rowTint,
       }}
     >
       {dropPosition ? (
@@ -93,7 +95,7 @@ export function Row({
           paddingTop: wrap ? 5 : 0,
           boxSizing: 'border-box',
           borderRight: '1px solid #e5e7eb',
-          background: selected ? '#bae6fd' : '#f8fafc',
+          background: selected ? '#bae6fd' : hovered ? '#dbe4f0' : '#f8fafc',
           color: '#64748b',
           cursor: 'grab',
           fontSize: 12,

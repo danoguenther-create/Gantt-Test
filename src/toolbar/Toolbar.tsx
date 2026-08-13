@@ -4,6 +4,7 @@ import { exportJson, importJsonFromFile } from '../state/persistence';
 import { buildSampleProject } from '../state/sampleData';
 import { formatAgo, useNow } from '../state/useNow';
 import type { ZoomLevel } from '../types';
+import { Menu } from './Menu';
 
 interface Props {
   selectedId: string | null;
@@ -62,6 +63,7 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
     background: '#fff',
     borderRadius: 4,
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   };
   const disabled: React.CSSProperties = { ...btn, opacity: 0.4, cursor: 'not-allowed' };
 
@@ -86,6 +88,22 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
     }
   };
 
+  const onSaveBaseline = () => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const def = `Baseline ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    const name = prompt('Name der Baseline?', def);
+    if (name === null) return;
+    dispatch({ type: 'SAVE_BASELINE', name: name || def });
+  };
+
+  const onDeleteBaseline = () => {
+    if (!compareBaseline) return;
+    if (confirm(`Baseline "${compareBaseline.name}" löschen?`)) {
+      dispatch({ type: 'DELETE_BASELINE', id: compareBaseline.id });
+    }
+  };
+
   const safeName = currentProject.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'project';
 
   const timestamp = () => {
@@ -107,6 +125,24 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
     }
   };
 
+  const downloadPortableHtml = () => {
+    const a = document.createElement('a');
+    a.href = './portable.html';
+    a.download = 'gantt-planner.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const onLoadSample = () => {
+    if (confirm(`Replace "${currentProject.name}" with the sample data? Export JSON first if you want to keep it.`)) {
+      dispatch({ type: 'REPLACE_STATE', state: buildSampleProject() });
+    }
+  };
+
+  const divider = <span style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 4px' }} />;
+  const groupLabel: React.CSSProperties = { fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 };
+
   return (
     <div
       style={{
@@ -120,50 +156,45 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
         flexWrap: 'wrap',
       }}
     >
-      <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Project</span>
+      {/* Project */}
       <select
         value={currentProject.id}
         onChange={(e) => dispatch({ type: 'SWITCH_PROJECT', id: e.target.value })}
-        style={{ ...btn, padding: '3px 6px', minWidth: 140, cursor: 'pointer' }}
-        title="Switch to another project"
+        style={{ ...btn, padding: '4px 6px', minWidth: 150, cursor: 'pointer', fontWeight: 600 }}
+        title="Projekt wechseln"
       >
-        {workspace.projectOrder.map((id) => {
-          const p = workspace.projects[id];
-          return (
-            <option key={id} value={id}>
-              {p.name}
-            </option>
-          );
-        })}
+        {workspace.projectOrder.map((id) => (
+          <option key={id} value={id}>
+            {workspace.projects[id].name}
+          </option>
+        ))}
       </select>
-      <button style={btn} onClick={onNewProject} title="Create a new empty project">
-        + New
-      </button>
-      <button style={btn} onClick={onRenameProject} title="Rename the current project">
-        Rename
-      </button>
-      <button
-        style={canDeleteProject ? btn : disabled}
-        disabled={!canDeleteProject}
-        onClick={onDeleteProject}
-        title={canDeleteProject ? 'Delete the current project' : 'Cannot delete the last remaining project'}
-      >
-        Delete
-      </button>
+      <Menu
+        label="Projekt"
+        title="Projektaktionen"
+        items={[
+          { label: 'Neues Projekt…', onClick: onNewProject },
+          { label: 'Umbenennen…', onClick: onRenameProject },
+          'separator',
+          { label: 'Projekt löschen', onClick: onDeleteProject, disabled: !canDeleteProject, danger: true },
+        ]}
+      />
 
-      <span style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 6px' }} />
+      {divider}
 
+      {/* Row editing */}
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
+        title="Zeile unterhalb einfügen"
         onClick={() => selectedId && dispatch({ type: 'ADD_TASK_BELOW', id: selectedId })}
       >
-        + Row
+        + Zeile
       </button>
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        title={selectedIds.length > 1 ? `Delete ${selectedIds.length} selected rows` : 'Delete the selected row'}
+        title={selectedIds.length > 1 ? `${selectedIds.length} Zeilen löschen` : 'Zeile löschen'}
         onClick={() => {
           const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
           if (ids.length === 0) return;
@@ -171,54 +202,52 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
           for (const id of ids) dispatch({ type: 'DELETE_TASK', id });
         }}
       >
-        {selectedIds.length > 1 ? `Delete Rows (${selectedIds.length})` : 'Delete Row'}
+        {selectedIds.length > 1 ? `Löschen (${selectedIds.length})` : 'Löschen'}
       </button>
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        title={selectedIds.length > 1 ? `Indent ${selectedIds.length} selected rows (make children of the row above)` : 'Indent (make child of previous sibling)'}
+        title="Einrücken (Unteraufgabe der vorherigen Zeile)"
         onClick={() => {
           const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
-          // top-to-bottom so each selected row nests under the same preceding row
           for (const id of ids) dispatch({ type: 'INDENT', id });
         }}
       >
-        → Indent
+        →
       </button>
       <button
         style={selectedId ? btn : disabled}
         disabled={!selectedId}
-        title={selectedIds.length > 1 ? `Outdent ${selectedIds.length} selected rows` : 'Outdent'}
+        title="Ausrücken"
         onClick={() => {
           const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
-          // bottom-to-top so the outdented rows keep their relative order
           for (const id of [...ids].reverse()) dispatch({ type: 'OUTDENT', id });
         }}
       >
-        ← Outdent
+        ←
       </button>
 
-      <span style={{ width: 1, height: 20, background: '#cbd5e1', margin: '0 6px' }} />
+      {divider}
 
-      <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>Baseline</span>
-      <button
-        style={btn}
-        title="Aktuellen Planstand als benannte Baseline einfrieren, um spätere Verschiebungen dagegen zu vergleichen"
-        onClick={() => {
-          const d = new Date();
-          const p = (n: number) => String(n).padStart(2, '0');
-          const def = `Baseline ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-          const name = prompt('Name der Baseline?', def);
-          if (name === null) return;
-          dispatch({ type: 'SAVE_BASELINE', name: name || def });
-        }}
-      >
-        Baseline speichern…
-      </button>
+      {/* Baseline */}
+      <Menu
+        label="Baseline"
+        title="Baseline speichern / löschen"
+        items={[
+          { label: 'Baseline speichern…', onClick: onSaveBaseline },
+          'separator',
+          {
+            label: compareBaseline ? `„${compareBaseline.name}" löschen` : 'Baseline löschen',
+            onClick: onDeleteBaseline,
+            disabled: !compareBaseline,
+            danger: true,
+          },
+        ]}
+      />
       <select
         value={state.compareBaselineId ?? ''}
         onChange={(e) => dispatch({ type: 'SET_COMPARE_BASELINE', id: e.target.value || null })}
-        style={{ ...btn, padding: '3px 6px', minWidth: 130, cursor: 'pointer' }}
+        style={{ ...btn, padding: '4px 6px', minWidth: 130, cursor: 'pointer' }}
         title="Baseline für den Vergleich wählen (Ghost-Bars + Δ-Spalte)"
         disabled={baselines.length === 0}
       >
@@ -229,109 +258,68 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
           </option>
         ))}
       </select>
-      <button
-        style={compareBaseline ? btn : disabled}
-        disabled={!compareBaseline}
-        title={compareBaseline ? `Baseline "${compareBaseline.name}" löschen` : 'Keine Baseline zum Vergleich gewählt'}
-        onClick={() => {
-          if (!compareBaseline) return;
-          if (confirm(`Baseline "${compareBaseline.name}" löschen?`)) {
-            dispatch({ type: 'DELETE_BASELINE', id: compareBaseline.id });
-          }
-        }}
-      >
-        Baseline löschen
-      </button>
 
       <span style={{ flex: 1 }} />
 
       <span
-        title={lastSavedAt ? `Auto-saved to browser storage ${new Date(lastSavedAt).toLocaleString()}` : 'No auto-save yet'}
-        style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '0 6px' }}
+        title={lastSavedAt ? `Auto-saved ${new Date(lastSavedAt).toLocaleString()}` : 'No auto-save yet'}
+        style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', padding: '0 4px' }}
       >
-        Saved {formatAgo(lastSavedAt, now)}
+        Gespeichert {formatAgo(lastSavedAt, now)}
       </span>
 
-      <span style={{ fontSize: 12, color: '#475569' }}>Zoom</span>
-      {ZOOMS.map((z) => (
-        <button
-          key={z}
-          style={{ ...btn, background: state.zoom === z ? '#2563eb' : '#fff', color: state.zoom === z ? '#fff' : '#0f172a' }}
-          onClick={() => dispatch({ type: 'SET_ZOOM', zoom: z })}
-        >
-          {z[0].toUpperCase() + z.slice(1)}
-        </button>
-      ))}
+      {divider}
 
-      <span style={{ width: 8 }} />
-      <button
-        style={{ ...btn, background: wrap ? '#2563eb' : '#fff', color: wrap ? '#fff' : '#0f172a' }}
-        onClick={onToggleWrap}
-        title="Zeilenumbruch in Zellen an/aus (erhöht die Zeilenhöhe)"
-      >
-        Wrap
-      </button>
-      <button
-        style={{ ...btn, background: showDependencies ? '#2563eb' : '#fff', color: showDependencies ? '#fff' : '#0f172a' }}
-        onClick={onToggleDependencies}
-        title="Abhängigkeitspfeile im Gantt ein-/ausblenden"
-      >
-        Abhängigkeiten
-      </button>
+      {/* Zoom (segmented) */}
+      <span style={groupLabel}>Zoom</span>
+      <div style={{ display: 'inline-flex', border: '1px solid #cbd5e1', borderRadius: 4, overflow: 'hidden' }}>
+        {ZOOMS.map((z, i) => (
+          <button
+            key={z}
+            style={{
+              padding: '4px 10px',
+              fontSize: 12,
+              border: 'none',
+              borderLeft: i === 0 ? 'none' : '1px solid #cbd5e1',
+              background: state.zoom === z ? '#2563eb' : '#fff',
+              color: state.zoom === z ? '#fff' : '#0f172a',
+              cursor: 'pointer',
+            }}
+            onClick={() => dispatch({ type: 'SET_ZOOM', zoom: z })}
+          >
+            {z === 'day' ? 'Tag' : z === 'week' ? 'Woche' : 'Monat'}
+          </button>
+        ))}
+      </div>
 
-      <span style={{ width: 8 }} />
-      <button
-        style={btn}
-        title="Replace the current project with the demo sample data"
-        onClick={() => {
-          if (confirm(`Replace "${currentProject.name}" with the sample data? Export JSON first if you want to keep it.`)) {
-            dispatch({ type: 'REPLACE_STATE', state: buildSampleProject() });
-          }
-        }}
-      >
-        Load Sample
-      </button>
-      <button
-        style={btn}
-        onClick={() => {
-          exportJson(state, `${safeName}_${timestamp()}.json`);
-          markExported();
-        }}
-        title="Download the current project as JSON"
-      >
-        Export JSON
-      </button>
-      <button
-        style={pdfExporting ? disabled : btn}
-        disabled={pdfExporting}
-        onClick={() => runPdfExport(false)}
-        title="Export the entire Gantt chart as a one-page PDF, with all rows expanded (page size adjusts to fit)"
-      >
-        {pdfExporting ? 'Exporting…' : 'Export PDF'}
-      </button>
-      <button
-        style={pdfExporting ? disabled : btn}
-        disabled={pdfExporting}
-        onClick={() => runPdfExport(true)}
-        title="Export a PDF of the current view — collapsed parent rows stay collapsed"
-      >
-        {pdfExporting ? 'Exporting…' : 'Export View PDF'}
-      </button>
-      <button style={btn} onClick={() => pickFile('replace')} title="Replace current project with a JSON file">
-        Import JSON
-      </button>
-      <button style={btn} onClick={() => pickFile('new')} title="Import JSON as a new project">
-        Import as New
-      </button>
+      {/* View options */}
+      <Menu
+        label="Ansicht"
+        title="Anzeigeoptionen"
+        items={[
+          { label: 'Zeilenumbruch (Wrap)', onClick: onToggleWrap, checked: wrap },
+          { label: 'Abhängigkeiten anzeigen', onClick: onToggleDependencies, checked: showDependencies },
+        ]}
+      />
+
+      {/* File: import / export */}
+      <Menu
+        label="Datei"
+        align="right"
+        title="Import, Export, Beispieldaten"
+        items={[
+          { label: 'Export als JSON', onClick: () => { exportJson(state, `${safeName}_${timestamp()}.json`); markExported(); } },
+          { label: pdfExporting ? 'Exportiere…' : 'Export als PDF (alles)', onClick: () => runPdfExport(false), disabled: pdfExporting },
+          { label: pdfExporting ? 'Exportiere…' : 'Export als PDF (Ansicht)', onClick: () => runPdfExport(true), disabled: pdfExporting },
+          'separator',
+          { label: 'Import JSON (ersetzen)…', onClick: () => pickFile('replace') },
+          { label: 'Import JSON als neues Projekt…', onClick: () => pickFile('new') },
+          'separator',
+          { label: 'Beispieldaten laden', onClick: onLoadSample },
+          { label: 'Portable HTML herunterladen', onClick: downloadPortableHtml },
+        ]}
+      />
       <input ref={fileInput} type="file" accept="application/json" onChange={onImport} style={{ display: 'none' }} />
-      <a
-        href="./portable.html"
-        download="gantt-planner.html"
-        style={{ ...btn, textDecoration: 'none', color: '#0f172a', display: 'inline-flex', alignItems: 'center' }}
-        title="Download a single-file version of this app you can open offline by double-clicking"
-      >
-        Download portable HTML
-      </a>
     </div>
   );
 }

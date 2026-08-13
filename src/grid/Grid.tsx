@@ -34,12 +34,14 @@ interface Props {
   rowHeight: number;
   showDelta: boolean;
   diffById: Map<TaskId, TaskDiff> | null;
+  hoveredRowId: string | null;
   onColumnResize: (id: ColumnId, width: number) => void;
   onActivate: (rowId: string, colIdx: number) => void;
   onNavigate: (dir: NavDirection) => void;
   onExtendSelection: (dir: 'up' | 'down') => void;
   onRowMouseDown: (rowId: string, mods: { shift: boolean; meta: boolean }) => void;
   onRowMouseEnter: (rowId: string) => void;
+  onRowHover: (rowId: string | null) => void;
   onEditStarted: () => void;
   onScroll: (top: number) => void;
 }
@@ -56,12 +58,14 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
     rowHeight,
     showDelta,
     diffById,
+    hoveredRowId,
     onColumnResize,
     onActivate,
     onNavigate,
     onExtendSelection,
     onRowMouseDown,
     onRowMouseEnter,
+    onRowHover,
     onEditStarted,
     onScroll,
   },
@@ -121,6 +125,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
         ref={ref}
         style={{ flex: 1, overflow: 'auto', userSelect: 'none' }}
         onScroll={(e) => onScroll((e.target as HTMLDivElement).scrollTop)}
+        onMouseLeave={() => onRowHover(null)}
       >
       <div style={{ width: gridWidth, position: 'relative' }}>
       <div
@@ -222,7 +227,10 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   if ((e.target as HTMLElement).closest('[data-row-gutter]')) return;
                   onRowMouseDown(row.task.id, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
                 }}
-                onMouseEnter={() => onRowMouseEnter(row.task.id)}
+                onMouseEnter={() => {
+                  onRowMouseEnter(row.task.id);
+                  onRowHover(row.task.id);
+                }}
                 onDragOver={(e) => {
                   if (!draggingId || draggingId === row.task.id) return;
                   e.preventDefault();
@@ -265,6 +273,7 @@ export const Grid = forwardRef<HTMLDivElement, Props>(function Grid(
                   rowHeight={rowHeight}
                   showDelta={showDelta}
                   rowDiff={diffById?.get(row.task.id)}
+                  hovered={hoveredRowId === row.task.id}
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', row.task.id);
