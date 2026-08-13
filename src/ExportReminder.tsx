@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useProject, useSaveMeta } from './state/store';
-import { exportJson } from './state/persistence';
+import { useProject, useSaveMeta, useWorkspace } from './state/store';
+import { exportJson, jsonExportFilename } from './state/persistence';
 import { useNow } from './state/useNow';
 
 const REMINDER_THRESHOLD_MS = 30 * 60 * 1000;
@@ -8,6 +8,7 @@ const REMINDER_THRESHOLD_MS = 30 * 60 * 1000;
 export function ExportReminder() {
   const { lastSavedAt, lastExportedAt, markExported } = useSaveMeta();
   const state = useProject();
+  const workspace = useWorkspace();
   const now = useNow(60_000);
   const [dismissedAt, setDismissedAt] = useState<number | null>(null);
 
@@ -63,7 +64,8 @@ export function ExportReminder() {
           fontWeight: 600,
         }}
         onClick={() => {
-          exportJson(state);
+          const name = workspace.projects[workspace.currentProjectId]?.name ?? 'project';
+          exportJson(state, jsonExportFilename(name));
           markExported();
         }}
       >

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useDispatch, useProject, useSaveMeta, useWorkspace } from '../state/store';
-import { exportJson, importJsonFromFile } from '../state/persistence';
+import { exportJson, importJsonFromFile, jsonExportFilename, pdfExportFilename } from '../state/persistence';
 import { buildSampleProject } from '../state/sampleData';
 import { formatAgo, useNow } from '../state/useNow';
 import type { ZoomLevel } from '../types';
@@ -104,20 +104,11 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
     }
   };
 
-  const safeName = currentProject.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'project';
-
-  const timestamp = () => {
-    const d = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
-  };
-
   const runPdfExport = async (respectCollapsed: boolean) => {
     setPdfExporting(true);
     try {
       const { exportProjectPdf } = await import('../pdfExport');
-      const suffix = respectCollapsed ? '_view' : '';
-      await exportProjectPdf(state, currentProject.name, `${safeName}${suffix}_${timestamp()}.pdf`, { respectCollapsed });
+      await exportProjectPdf(state, currentProject.name, pdfExportFilename(currentProject.name, respectCollapsed), { respectCollapsed });
     } catch (err) {
       alert(`PDF export failed: ${(err as Error).message}`);
     } finally {
@@ -307,7 +298,7 @@ export function Toolbar({ selectedId, selectedIds, wrap, onToggleWrap, showDepen
         label="Datei"
         title="Import, Export, Beispieldaten"
         items={[
-          { label: 'Export als JSON', onClick: () => { exportJson(state, `${safeName}_${timestamp()}.json`); markExported(); } },
+          { label: 'Export als JSON', onClick: () => { exportJson(state, jsonExportFilename(currentProject.name)); markExported(); } },
           { label: pdfExporting ? 'Exportiere…' : 'Export als PDF (alles)', onClick: () => runPdfExport(false), disabled: pdfExporting },
           { label: pdfExporting ? 'Exportiere…' : 'Export als PDF (Ansicht)', onClick: () => runPdfExport(true), disabled: pdfExporting },
           'separator',

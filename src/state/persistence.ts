@@ -105,6 +105,24 @@ export function saveWorkspaceToLocalStorage(ws: Workspace): void {
   }
 }
 
+// Shared export-filename helpers so every export entry point (toolbar, reminder) stays in sync.
+export function sanitizeName(name: string): string {
+  return name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'project';
+}
+
+export function exportTimestamp(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+export function jsonExportFilename(projectName: string): string {
+  return `${sanitizeName(projectName)}_${exportTimestamp()}.json`;
+}
+
+export function pdfExportFilename(projectName: string, view: boolean): string {
+  return `${sanitizeName(projectName)}${view ? '_view' : ''}_${exportTimestamp()}.pdf`;
+}
+
 export function exportJson(project: ProjectState, filename = 'gantt-project.json'): void {
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
