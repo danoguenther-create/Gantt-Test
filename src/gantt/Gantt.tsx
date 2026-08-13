@@ -151,6 +151,7 @@ export const Gantt = forwardRef<HTMLDivElement, Props>(function Gantt({ state, r
                       rowHeight={rowHeight}
                       metrics={metrics}
                       isSummary={r.hasChildren}
+                      complete={r.task.status === 'Complete'}
                     />,
                   ];
                 })

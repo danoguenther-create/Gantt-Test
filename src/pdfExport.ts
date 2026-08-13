@@ -237,6 +237,7 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
     if (baseline) {
       const snap = baseline.tasks[task.id];
       if (snap) {
+        const done = task.status === 'Complete';
         const gBarY = y + (ROW_HEIGHT - BAR_HEIGHT) / 2;
         const gx = ganttHeaderX + pxForDate(metrics, snap.start);
         const gxEnd = ganttHeaderX + pxForDate(metrics, snap.finish) + metrics.pxPerDay;
@@ -245,7 +246,9 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
           const gcx = gx + metrics.pxPerDay / 2;
           const gcy = gBarY + BAR_HEIGHT / 2;
           const gs = BAR_HEIGHT / 2 + 1;
-          parts.push(`<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="#94a3b8"/>`);
+          const msFill = done ? '#dcfce7' : '#94a3b8';
+          const msStroke = done ? '#16a34a' : '#94a3b8';
+          parts.push(`<polygon points="${gcx},${gcy - gs} ${gcx + gs},${gcy} ${gcx},${gcy + gs} ${gcx - gs},${gcy}" fill="${msFill}" stroke="${msStroke}"/>`);
         } else if (row.hasChildren) {
           const midY = gBarY + BAR_HEIGHT / 2;
           const capW = 6;
@@ -254,7 +257,9 @@ function buildExportSvg(state: ProjectState, projectName: string, expand: boolea
           parts.push(`<polygon points="${gx},${midY - 2} ${gx + capW},${midY - 2} ${gx},${midY - 2 + capH}" fill="#94a3b8"/>`);
           parts.push(`<polygon points="${gxEnd},${midY - 2} ${gxEnd - capW},${midY - 2} ${gxEnd},${midY - 2 + capH}" fill="#94a3b8"/>`);
         } else {
-          parts.push(`<rect x="${gx}" y="${gBarY}" width="${gw}" height="${BAR_HEIGHT}" rx="3" ry="3" fill="#cbd5e1" stroke="#94a3b8"/>`);
+          const gFill = done ? '#dcfce7' : '#cbd5e1';
+          const gStroke = done ? '#16a34a' : '#94a3b8';
+          parts.push(`<rect x="${gx}" y="${gBarY}" width="${gw}" height="${BAR_HEIGHT}" rx="3" ry="3" fill="${gFill}" stroke="${gStroke}"/>`);
         }
       }
     }
